@@ -1226,6 +1226,7 @@ void set_router_id(routerinfo_t *router)
  */
 routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int cache_copy, int allow_annotations,const char *prepend_annotations)
 {	routerinfo_t *router = NULL;
+	char *esc_l;
 	char digest[128];
 	smartlist_t *tokens = NULL, *exit_policy_tokens = NULL;
 	directory_token_t *tok;
@@ -1298,21 +1299,41 @@ routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int 
 					else
 					{	router->addr = ntohl(in.s_addr);
 						router->or_port = (uint16_t) tor_parse_long(tok->args[2],10,0,65535,&ok,NULL);
-						if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_PORT),escaped(tok->args[2]));
+						if(!ok)
+						{	esc_l = esc_for_log(tok->args[2]);
+							log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_PORT),esc_l);
+							tor_free(esc_l);
+						}
 						else
 						{	router->dir_port = (uint16_t) tor_parse_long(tok->args[4],10,0,65535,&ok,NULL);
-							if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_PORT_2),escaped(tok->args[4]));
+							if(!ok)
+							{	esc_l = esc_for_log(tok->args[4]);
+								log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_PORT_2),esc_l);
+								tor_free(esc_l);
+							}
 							else
 							{	tok = find_by_keyword(tokens, K_BANDWIDTH);
 								tor_assert(tok->n_args >= 3);
 								router->bandwidthrate = (int)tor_parse_long(tok->args[0],10,1,INT_MAX,&ok,NULL);
-								if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW),escaped(tok->args[0]));
+								if(!ok)
+								{	esc_l = esc_for_log(tok->args[0]);
+									log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW),esc_l);
+									tor_free(esc_l);
+								}
 								else
 								{	router->bandwidthburst = (int) tor_parse_long(tok->args[1],10,0,INT_MAX,&ok,NULL);
-									if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW_2),escaped(tok->args[1]));
+									if(!ok)
+									{	esc_l = esc_for_log(tok->args[1]);
+										log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW_2),esc_l);
+										tor_free(esc_l);
+									}
 									else
 									{	router->bandwidthcapacity = (int)tor_parse_long(tok->args[2],10,0,INT_MAX,&ok,NULL);
-										if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW_3),escaped(tok->args[1]));
+										if(!ok)
+										{	esc_l = esc_for_log(tok->args[1]);
+											log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW_3),esc_l);
+											tor_free(esc_l);
+										}
 										else
 										{	if((tok = find_opt_by_keyword(tokens, A_PURPOSE)))
 											{	tor_assert(tok->n_args);
@@ -1324,7 +1345,11 @@ routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int 
 											{	tor_assert(tok->n_args >= 1);
 												router->uptime = tor_parse_long(tok->args[0],10,0,LONG_MAX,&ok,NULL);
 												router->estimated_start = dlgBypassBlacklists_getLongevity(router);
-												if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_UPTIME),escaped(tok->args[0]));
+												if(!ok)
+												{	esc_l = esc_for_log(tok->args[0]);
+													log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_UPTIME),esc_l);
+													tor_free(esc_l);
+												}
 											}
 										}
 									}
@@ -1362,7 +1387,9 @@ routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int 
 										tor_assert(tok->n_args == 1);
 										tor_strstrip(tok->args[0], " ");
 										if(base16_decode(d, DIGEST_LEN, tok->args[0], strlen(tok->args[0])))
-										{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_FINGERPRINT),escaped(tok->args[0]));
+										{	esc_l = esc_for_log(tok->args[0]);
+											log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_FINGERPRINT),esc_l);
+											tor_free(esc_l);
 											ok = 0;
 										}
 										else if(tor_memneq(d,router->cache_info.identity_digest, DIGEST_LEN)!=0)
@@ -1410,7 +1437,9 @@ routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int 
 											router->declared_family = smartlist_create();
 											for(i=0;i<tok->n_args;++i)
 											{	if(!is_legal_nickname_or_hexdigest(tok->args[i]))
-												{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_2),escaped(tok->args[i]));
+												{	esc_l = esc_for_log(tok->args[i]);
+													log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_2),esc_l);
+													tor_free(esc_l);
 													ok = 0;
 													break;
 												}
@@ -1426,7 +1455,11 @@ routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int 
 											{	tor_assert(tok->n_args >= 1);
 												if(strlen(tok->args[0]) == HEX_DIGEST_LEN)
 													base16_decode(router->cache_info.extra_info_digest,DIGEST_LEN, tok->args[0], HEX_DIGEST_LEN);
-												else	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_EXTRAINFO),escaped(tok->args[0]));
+												else
+												{	esc_l = esc_for_log(tok->args[0]);
+													log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_EXTRAINFO),esc_l);
+													tor_free(esc_l);
+												}
 											}
 											if(find_opt_by_keyword(tokens, K_HIDDEN_SERVICE_DIR))
 												router->wants_to_be_hs_dir = 1;
@@ -1478,6 +1511,7 @@ routerinfo_t *router_parse_entry_from_string(const char *s, const char *end,int 
  */
 extrainfo_t *extrainfo_parse_entry_from_string(const char *s, const char *end,int cache_copy, struct digest_ri_map_t *routermap)
 {	extrainfo_t *extrainfo = NULL;
+	char *esc_l;
 	char digest[128];
 	smartlist_t *tokens = NULL;
 	directory_token_t *tok;
@@ -1512,19 +1546,25 @@ extrainfo_t *extrainfo_parse_entry_from_string(const char *s, const char *end,in
 				memcpy(extrainfo->cache_info.signed_descriptor_digest, digest, DIGEST_LEN);
 				tor_assert(tok->n_args >= 2);
 				if(!is_legal_nickname(tok->args[0]))
-				{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_3),escaped(tok->args[0]));
+				{	esc_l = esc_for_log(tok->args[0]);
+					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_3),esc_l);
+					tor_free(esc_l);
 					ok = 0;
 				}
 				else
 				{	strlcpy(extrainfo->nickname, tok->args[0], sizeof(extrainfo->nickname));
 					if(strlen(tok->args[1]) != HEX_DIGEST_LEN || base16_decode(extrainfo->cache_info.identity_digest, DIGEST_LEN,tok->args[1], HEX_DIGEST_LEN))
-					{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_FINGERPRINT),escaped(tok->args[1]));
+					{	esc_l = esc_for_log(tok->args[1]);
+						log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_FINGERPRINT),esc_l);
+						tor_free(esc_l);
 						ok = 0;
 					}
 					else
 					{	tok = find_by_keyword(tokens, K_PUBLISHED);
 						if(parse_iso_time(tok->args[0], &extrainfo->cache_info.published_on))
-						{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_TIME),escaped(tok->args[0]));
+						{	esc_l = esc_for_log(tok->args[0]);
+							log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_TIME),esc_l);
+							tor_free(esc_l);
 							ok = 0;
 						}
 						else
@@ -1631,7 +1671,10 @@ authority_cert_t *authority_cert_parse_from_string(const char *s, const char **e
 				tok = find_by_keyword(tokens, K_FINGERPRINT);
 				tor_assert(tok->n_args);
 				if(base16_decode(fp_declared, DIGEST_LEN, tok->args[0],strlen(tok->args[0])))
-					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_KEY),escaped(tok->args[0]));
+				{	char *esc_l = esc_for_log(tok->args[0]);
+					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_KEY),esc_l);
+					tor_free(esc_l);
+				}
 				else if(crypto_pk_get_digest(cert->identity_key,cert->cache_info.identity_digest));
 				else if(tor_memneq(cert->cache_info.identity_digest, fp_declared, DIGEST_LEN))
 					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_DIGEST_MISMATCH));
@@ -1756,6 +1799,7 @@ find_start_of_next_routerstatus(const char *s)
  **/
 static routerstatus_t *routerstatus_parse_entry_from_string(memarea_t *area,const char **s, smartlist_t *tokens,networkstatus_t *vote,vote_routerstatus_t *vote_rs,int consensus_method,consensus_flavor_t flav)
 {	const char *eos, *s_dup = *s;
+	char *esc_l;
 	routerstatus_t *rs = NULL;
 	directory_token_t *tok;
 	char timebuf[ISO_TIME_LEN+1];
@@ -1788,20 +1832,34 @@ static routerstatus_t *routerstatus_parse_entry_from_string(memarea_t *area,cons
 		}
 		if(!ok)	;
 		else if(!is_legal_nickname(tok->args[0]))
-			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_4),escaped(tok->args[0]));
+		{	esc_l = esc_for_log(tok->args[0]);
+			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_4),esc_l);
+			tor_free(esc_l);
+		}
 		else if(digest_from_base64(rs->identity_digest, tok->args[1]))
-			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST),escaped(tok->args[1]));
+		{	esc_l = esc_for_log(tok->args[1]);
+			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST),esc_l);
+			tor_free(esc_l);
+		}
 		else if(digest_from_base64(rs->descriptor_digest, tok->args[2]))
-			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_2),escaped(tok->args[2]));
+		{	esc_l = esc_for_log(tok->args[2]);
+			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_2),esc_l);
+			tor_free(esc_l);
+		}
 		else if(tor_snprintf(timebuf,sizeof(timebuf), "%s %s",tok->args[3+offset], tok->args[4+offset]) < 0 || parse_iso_time(timebuf, &rs->published_on)<0)
 			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_TIME_2),tok->args[3+offset],tok->args[4+offset]);
 		else if(tor_inet_aton(tok->args[5+offset], &in) == 0)
-			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ADDRESS_3),escaped(tok->args[5+offset]));
+		{	esc_l = esc_for_log(tok->args[5+offset]);
+			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ADDRESS_3),esc_l);
+			tor_free(esc_l);
+		}
 		else
 		{
 			if(flav == FLAV_NS)
 			{	if(digest_from_base64(rs->descriptor_digest, tok->args[2]))
-				{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_2),escaped(tok->args[2]));
+				{	esc_l = esc_for_log(tok->args[2]);
+					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_2),esc_l);
+					tor_free(esc_l);
 					ok = 0;
 				}
 			}
@@ -1819,7 +1877,9 @@ static routerstatus_t *routerstatus_parse_entry_from_string(memarea_t *area,cons
 					{	int p = smartlist_string_pos(vote->known_flags, tok->args[i]);
 						if(p >= 0)	vote_rs->flags |= (1<<p);
 						else
-						{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_UNKNOWN_FLAG),escaped(tok->args[i]));
+						{	esc_l = esc_for_log(tok->args[i]);
+							log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_UNKNOWN_FLAG),esc_l);
+							tor_free(esc_l);
 							ok = 0;
 							break;
 						}
@@ -1869,7 +1929,9 @@ static routerstatus_t *routerstatus_parse_entry_from_string(memarea_t *area,cons
 					{	if(!strcmpstart(tok->args[i], "Bandwidth="))
 						{	rs->bandwidth = (uint32_t)tor_parse_ulong(strchr(tok->args[i], '=')+1,10, 0, UINT32_MAX,&ok, NULL);
 							if(!ok)
-							{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW_4),escaped(tok->args[i]));
+							{	esc_l = esc_for_log(tok->args[i]);
+								log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_BW_4),esc_l);
+								tor_free(esc_l);
 								break;
 							}
 							else	rs->has_bandwidth = 1;
@@ -1877,7 +1939,9 @@ static routerstatus_t *routerstatus_parse_entry_from_string(memarea_t *area,cons
 						else if(!strcmpstart(tok->args[i], "Measured="))
 						{	rs->measured_bw = (uint32_t)tor_parse_ulong(strchr(tok->args[i], '=')+1,10,0,UINT32_MAX,&ok,NULL);
 							if(!ok)
-							{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_MEASURED_BW),escaped(tok->args[i]));
+							{	esc_l = esc_for_log(tok->args[i]);
+								log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_MEASURED_BW),esc_l);
+								tor_free(esc_l);
 								break;
 							}
 							rs->has_measured_bw = 1;
@@ -1888,7 +1952,9 @@ static routerstatus_t *routerstatus_parse_entry_from_string(memarea_t *area,cons
 				{	if((tok = find_opt_by_keyword(tokens, K_P)))
 					{	tor_assert(tok->n_args == 1);
 						if(strcmpstart(tok->args[0], "accept ") && strcmpstart(tok->args[0], "reject "))
-						{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_EXIT_POLICY_SUMMARY),escaped(tok->args[0]));
+						{	esc_l = esc_for_log(tok->args[0]);
+							log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_EXIT_POLICY_SUMMARY),esc_l);
+							tor_free(esc_l);
 							ok = 0;
 						}
 						else	/* XXX weasel: parse this into ports and represent them somehow smart, maybe not here but somewhere on if we need it for the client. we should still parse it here to check it's valid tho. */
@@ -1963,6 +2029,7 @@ _free_duplicate_routerstatus_entry(void *e)
  */
 networkstatus_v2_t *networkstatus_v2_parse_from_string(const char *s)
 {	const char *eos, *s_dup = s;
+	char *esc_l;
 	smartlist_t *tokens = smartlist_create();
 	smartlist_t *footer_tokens = smartlist_create();
 	networkstatus_v2_t *ns = NULL;
@@ -1987,13 +2054,19 @@ networkstatus_v2_t *networkstatus_v2_parse_from_string(const char *s)
 			tok = find_by_keyword(tokens, K_NETWORK_STATUS_VERSION);
 			tor_assert(tok->n_args >= 1);
 			if(strcmp(tok->args[0], "2"))
-				log_warn(LD_BUG,get_lang_str(LANG_LOG_ROUTERPARSE_NON_V2_NS),escaped(tok->args[0]));
+			{	esc_l = esc_for_log(tok->args[0]);
+				log_warn(LD_BUG,get_lang_str(LANG_LOG_ROUTERPARSE_NON_V2_NS),esc_l);
+				tor_free(esc_l);
+			}
 			else
 			{	tok = find_by_keyword(tokens, K_DIR_SOURCE);
 				tor_assert(tok->n_args >= 3);
 				ns->source_address = tor_strdup(tok->args[0]);
 				if(tor_inet_aton(tok->args[1], &in) == 0)
-					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ADDRESS_4),escaped(tok->args[1]));
+				{	esc_l = esc_for_log(tok->args[1]);
+					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ADDRESS_4),esc_l);
+					tor_free(esc_l);
+				}
 				else
 				{	ns->source_addr = ntohl(in.s_addr);
 					ns->source_dirport = (uint16_t) tor_parse_long(tok->args[2],10,0,65535,NULL,NULL);
@@ -2003,7 +2076,10 @@ networkstatus_v2_t *networkstatus_v2_parse_from_string(const char *s)
 					{	tok = find_by_keyword(tokens, K_FINGERPRINT);
 						tor_assert(tok->n_args);
 						if(base16_decode(ns->identity_digest, DIGEST_LEN, tok->args[0],strlen(tok->args[0])))
-							log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_FINGERPRINT_2),escaped(tok->args[0]));
+						{	esc_l = esc_for_log(tok->args[0]);
+							log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_FINGERPRINT_2),esc_l);
+							tor_free(esc_l);
+						}
 						else
 						{	if((tok = find_opt_by_keyword(tokens, K_CONTACT)))
 							{	tor_assert(tok->n_args);
@@ -2338,6 +2414,7 @@ int networkstatus_verify_bw_weights(networkstatus_t *ns)
  * ns_type), from <b>s</b>, and return the result.  Return NULL on failure. */
 networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char **eos_out,networkstatus_type_t ns_type)
 {	smartlist_t *tokens = smartlist_create();
+	char *esc_l;
 	smartlist_t *rs_tokens = NULL, *footer_tokens = NULL;
 	networkstatus_voter_info_t *voter = NULL;
 	networkstatus_t *ns = NULL;
@@ -2366,7 +2443,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 			if(tok->n_args > 1)
 			{	int flavor = networkstatus_parse_flavor_name(tok->args[1]);
 				if(flavor < 0)
-				{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_UNKNOWN_FLAVOR),escaped(tok->args[1]));
+				{	esc_l = esc_for_log(tok->args[1]);
+					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_UNKNOWN_FLAVOR),esc_l);
+					tor_free(esc_l);
 					ok = 0;
 				}
 				else	ns->flavor = flav = flavor;
@@ -2391,7 +2470,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 				else if(!strcmp(tok->args[0], "consensus"))	ns->type = NS_TYPE_CONSENSUS;
 				else if(!strcmp(tok->args[0], "opinion"))	ns->type = NS_TYPE_OPINION;
 				else
-				{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_VOTE),escaped(tok->args[0]));
+				{	esc_l = esc_for_log(tok->args[0]);
+					log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_VOTE),esc_l);
+					tor_free(esc_l);
 					ns->type = ns_type + 1;
 				}
 				if(ns_type != ns->type)
@@ -2484,13 +2565,17 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 										{	int ok=0;
 											char *eq = strchr(tok->args[i], '=');
 											if(!eq)
-											{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS),escaped(tok->args[i]));
+											{	esc_l = esc_for_log(tok->args[i]);
+												log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS),esc_l);
+												tor_free(esc_l);
 												ok = 0;
 												break;
 											}
 											tor_parse_long(eq+1, 10, INT32_MIN, INT32_MAX, &ok, NULL);
 											if(!ok)
-											{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS_2),escaped(tok->args[i]));
+											{	esc_l = esc_for_log(tok->args[i]);
+												log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS_2),esc_l);
+												tor_free(esc_l);
 												break;
 											}
 											if(i > 0 && strcmp(tok->args[i-1], tok->args[i]) >= 0)
@@ -2521,7 +2606,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 										memcpy(voter->vote_digest, ns_digests.d[DIGEST_SHA1], DIGEST_LEN);
 									voter->nickname = tor_strdup(tok->args[0]);
 									if(strlen(tok->args[1]) != HEX_DIGEST_LEN || base16_decode(voter->identity_digest, sizeof(voter->identity_digest),tok->args[1], HEX_DIGEST_LEN) < 0)
-									{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_3),escaped(tok->args[1]));
+									{	esc_l = esc_for_log(tok->args[1]);
+										log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_3),esc_l);
+										tor_free(esc_l);
 										ok = 0;
 										break;
 									}
@@ -2532,7 +2619,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 									}
 									voter->address = tor_strdup(tok->args[2]);
 									if(!tor_inet_aton(tok->args[3], &in))
-									{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ADDRESS_5),escaped(tok->args[3]));
+									{	esc_l = esc_for_log(tok->args[3]);
+										log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ADDRESS_5),esc_l);
+										tor_free(esc_l);
 										ok = 0;
 										break;
 									}
@@ -2559,7 +2648,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 										break;
 									}
 									if(strlen(tok->args[0]) != HEX_DIGEST_LEN || base16_decode(voter->vote_digest, sizeof(voter->vote_digest),tok->args[0], HEX_DIGEST_LEN) < 0)
-									{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_4),escaped(tok->args[0]));
+									{	esc_l = esc_for_log(tok->args[0]);
+										log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_4),esc_l);
+										tor_free(esc_l);
 										ok = 0;
 										break;
 									}
@@ -2586,7 +2677,11 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 											if(base16_decode(voter->legacy_id_digest, DIGEST_LEN,tok->args[0], HEX_DIGEST_LEN) >= 0)
 												bad = 0;
 										}
-										if(bad)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DIGEST),escaped(tok->args[0]));
+										if(bad)
+										{	esc_l = esc_for_log(tok->args[0]);
+											log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DIGEST),esc_l);
+											tor_free(esc_l);
+										}
 									}
 									/* Parse routerstatus lines. */
 									rs_tokens = smartlist_create();
@@ -2661,12 +2756,18 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 													{	int ok=0;
 														char *eq = strchr(tok->args[i], '=');
 														if(!eq)
-														{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS_3),escaped(tok->args[i]));
+														{	esc_l = esc_for_log(tok->args[i]);
+															log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS_3),esc_l);
+															tor_free(esc_l);
 															ok = 0;
 														}
 														else
 														{	tor_parse_long(eq+1, 10, INT32_MIN, INT32_MAX, &ok, NULL);
-															if(!ok)	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS),escaped(tok->args[i]));
+															if(!ok)
+															{	esc_l = esc_for_log(tok->args[i]);
+																log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_BAD_ELEMENT_IN_PARAMS),esc_l);
+																tor_free(esc_l);
+															}
 															else	smartlist_add(ns->weight_params, tor_strdup(tok->args[i]));
 														}
 													}
@@ -2694,7 +2795,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 														sk_hexdigest = tok->args[2];
 														a = crypto_digest_algorithm_parse_name(algname);
 														if(a<0)
-														{	log_warn(LD_DIR,"Unknown digest algorithm %s; skipping",escaped(algname));
+														{	esc_l = esc_for_log(algname);
+															log_warn(LD_DIR,"Unknown digest algorithm %s; skipping",esc_l);
+															tor_free(esc_l);
 															continue;
 														}
 														alg = a;
@@ -2705,7 +2808,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 														break;
 													}
 													if(strlen(id_hexdigest) != HEX_DIGEST_LEN || base16_decode(declared_identity, sizeof(declared_identity),id_hexdigest, HEX_DIGEST_LEN) < 0)
-													{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_5), escaped(id_hexdigest));
+													{	esc_l = esc_for_log(id_hexdigest);
+														log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_5),esc_l);
+														tor_free(esc_l);
 														ok = 0;
 														break;
 													}
@@ -2718,7 +2823,9 @@ networkstatus_t *networkstatus_parse_vote_from_string(const char *s, const char 
 													memcpy(sig->identity_digest, v->identity_digest, DIGEST_LEN);
 													sig->alg = alg;
 													if(strlen(sk_hexdigest) != HEX_DIGEST_LEN || base16_decode(sig->signing_key_digest, sizeof(sig->signing_key_digest),sk_hexdigest, HEX_DIGEST_LEN) < 0)
-													{	log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_SIGNING_KEY), escaped(sk_hexdigest));
+													{	esc_l = esc_for_log(sk_hexdigest);
+														log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_SIGNING_KEY),esc_l);
+														tor_free(esc_l);
 														tor_free(sig);
 														ok = 0;
 														break;
@@ -2967,12 +3074,16 @@ ns_detached_signatures_t *networkstatus_parse_detached_signatures(const char *s,
 					break;
 				}
 				if(strlen(id_hexdigest) != HEX_DIGEST_LEN || base16_decode(id_digest, sizeof(id_digest),id_hexdigest, HEX_DIGEST_LEN) < 0)
-				{	log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_5), escaped(id_hexdigest));
+				{	char *esc_l = esc_for_log(id_hexdigest);
+					log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_DIGEST_5),esc_l);
+					tor_free(esc_l);
 					ok = 0;
 					break;
 				}
 				if(strlen(sk_hexdigest) != HEX_DIGEST_LEN || base16_decode(sk_digest, sizeof(sk_digest),sk_hexdigest, HEX_DIGEST_LEN) < 0)
-				{	log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_SIGNING_KEY), escaped(sk_hexdigest));
+				{	char *esc_l = esc_for_log(sk_hexdigest);
+					log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_DECODING_SIGNING_KEY),esc_l);
+					tor_free(esc_l);
 					ok = 0;
 					break;
 				}
@@ -3028,7 +3139,9 @@ addr_policy_t *router_parse_addr_policy_item_from_string(const char *s, int assu
 	s = eat_whitespace(s);
 	if((*s == '*' || TOR_ISDIGIT(*s)) && assume_action >= 0)
 	{	if(tor_snprintf(line, sizeof(line), "%s %s",assume_action == ADDR_POLICY_ACCEPT?"accept":"reject", s) < 0)
-		{	log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_POLICY),escaped(s));
+		{	char *esc_l = esc_for_log(s);
+			log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_POLICY),esc_l);
+			tor_free(esc_l);
 			return NULL;
 		}
 		cp = line;
@@ -3105,7 +3218,9 @@ router_parse_addr_policy(directory_token_t *tok)
 
   if (tor_addr_parse_mask_ports(arg, &newe.addr, &newe.maskbits,
                                 &newe.prt_min, &newe.prt_max) < 0) {
-    log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_PARSING_LINE),escaped(arg));
+    char *esc_l = esc_for_log(arg);
+    log_warn(LD_DIR,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_PARSING_LINE),esc_l);
+    tor_free(esc_l);
     return NULL;
   }
 
@@ -3721,7 +3836,9 @@ smartlist_t *microdescs_parse_from_string(const char *s, const char *eos,int all
 						md->family = smartlist_create();
 						for(i=0;i<tok->n_args;++i)
 						{	if(!is_legal_nickname_or_hexdigest(tok->args[i]))
-							{	log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_2),escaped(tok->args[i]));
+							{	char *esc_l = esc_for_log(tok->args[i]);
+								log_warn(LD_DIR, get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_NICKNAME_2),esc_l);
+								tor_free(esc_l);
 								microdesc_free(md);
 								md = NULL;
 								break;
@@ -4005,7 +4122,9 @@ int rend_parse_v2_service_descriptor(rend_service_descriptor_t **parsed_out,char
 					result->version = (int) tor_parse_long(tok->args[0], 10, 0, INT_MAX, &num_ok, NULL);
 					if(result->version != 2 || !num_ok)
 					{	/* If it's <2, it shouldn't be under this format.  If the number is greater than 2, we bumped it because we broke backward compatibility.  See how version numbers in our other formats work. */
-						log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DESC_VERSION),escaped(tok->args[0]));
+						char *esc_l = esc_for_log(tok->args[0]);
+						log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DESC_VERSION),esc_l);
+						tor_free(esc_l);
 					}
 					else
 					{	/* Parse public key. */
@@ -4270,7 +4389,9 @@ int rend_parse_introduction_points(rend_service_descriptor_t *parsed,const char 
 		tok = find_by_keyword(tokens, R_IPO_ONION_PORT);
 		info->port = (uint16_t) tor_parse_long(tok->args[0],10,1,65535,&num_ok,NULL);
 		if(!info->port || !num_ok)
-		{	log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ONION_PORT),escaped(tok->args[0]));
+		{	char *esc_l = esc_for_log(tok->args[0]);
+			log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_ONION_PORT),esc_l);
+			tor_free(esc_l);
 			rend_intro_point_free(intro);
 			result = -1;
 			break;
@@ -4365,13 +4486,17 @@ int rend_parse_client_keys(strmap_t *parsed_clients, const char *ckstr)
 		tok = find_by_keyword(tokens, C_DESCRIPTOR_COOKIE);
 		tor_assert(tok->n_args == 1);
 		if(strlen(tok->args[0]) != REND_DESC_COOKIE_LEN_BASE64 + 2)
-		{	log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DESC_COOKIE),escaped(tok->args[0]));
+		{	char *esc_l = esc_for_log(tok->args[0]);
+			log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DESC_COOKIE),esc_l);
+			tor_free(esc_l);
 			result = -1;
 			break;
 		}
 		/* The size of descriptor_cookie_tmp needs to be REND_DESC_COOKIE_LEN+2, because a base64 encoding of length 24 does not fit into 16 bytes in all cases. */
 		if((base64_decode(descriptor_cookie_tmp, REND_DESC_COOKIE_LEN+2,tok->args[0], REND_DESC_COOKIE_LEN_BASE64+2+1) != REND_DESC_COOKIE_LEN))
-		{	log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DESC_COOKIE_2),escaped(tok->args[0]));
+		{	char *esc_l = esc_for_log(tok->args[0]);
+			log_warn(LD_REND,get_lang_str(LANG_LOG_ROUTERPARSE_INVALID_DESC_COOKIE_2),esc_l);
+			tor_free(esc_l);
 			result = -1;
 			break;
 		}

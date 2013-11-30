@@ -660,7 +660,9 @@ static void connection_dir_retry_bridges(smartlist_t *descs)
 {	char digest[DIGEST_LEN];
 	SMARTLIST_FOREACH(descs, const char *, cp,
 	{	if(base16_decode(digest, DIGEST_LEN, cp, strlen(cp))<0)
-		{	log_warn(LD_BUG,get_lang_str(LANG_LOG_DIRECTORY_MALFORMED_BRIDGE_FINGERPRINT),escaped(cp));
+		{	char *esc_l = esc_for_log(cp);
+			log_warn(LD_BUG,get_lang_str(LANG_LOG_DIRECTORY_MALFORMED_BRIDGE_FINGERPRINT),esc_l);
+			tor_free(esc_l);
 			continue;
 		}
 		retry_bridge_descriptor_fetch_directly(digest);
@@ -1277,6 +1279,7 @@ static void
 http_set_address_origin(const char *headers, connection_t *conn)
 {
   char *fwd=NULL;
+  char *esc_l;
 
   fwd = http_get_header(headers, "Forwarded-For: ");
   if (!fwd)
@@ -1284,7 +1287,9 @@ http_set_address_origin(const char *headers, connection_t *conn)
   if (fwd) {
     struct in_addr in;
     if (!tor_inet_aton(fwd, &in) || is_internal_IP(ntohl(in.s_addr), 0)) {
-      log_debug(LD_DIR,get_lang_str(LANG_LOG_DIR_IGNORING_UNRECOGNIZED_IP),escaped(fwd));
+      esc_l = esc_for_log(fwd);
+      log_debug(LD_DIR,get_lang_str(LANG_LOG_DIR_IGNORING_UNRECOGNIZED_IP),esc_l);
+      tor_free(esc_l);
       tor_free(fwd);
       return;
     }
@@ -1317,6 +1322,7 @@ parse_http_response(const char *headers, int *code, time_t *date,
   unsigned n1, n2;
   char datestr[RFC1123_TIME_LEN+1];
   smartlist_t *parsed_headers;
+  char *esc_l;
   tor_assert(headers);
   tor_assert(code);
 
@@ -1325,7 +1331,9 @@ parse_http_response(const char *headers, int *code, time_t *date,
   if (tor_sscanf(headers, "HTTP/1.%u %u", &n1, &n2) < 2 ||
       (n1 != 0 && n1 != 1) ||
       (n2 < 100 || n2 >= 600)) {
-    log_warn(LD_HTTP,get_lang_str(LANG_LOG_DIR_HTTP_HEADER_PARSE_FAILED),escaped(headers));
+    esc_l = esc_for_log(headers);
+    log_warn(LD_HTTP,get_lang_str(LANG_LOG_DIR_HTTP_HEADER_PARSE_FAILED),esc_l);
+    tor_free(esc_l);
     return -1;
   }
   *code = n2;
@@ -1372,7 +1380,9 @@ parse_http_response(const char *headers, int *code, time_t *date,
     } else if (!strcmp(enc, "gzip") || !strcmp(enc, "x-gzip")) {
       *compression = GZIP_METHOD;
     } else {
-      log_info(LD_HTTP,get_lang_str(LANG_LOG_DIR_HTTP_UNRECOGNIZED_ENCODING),escaped(enc));
+      esc_l = esc_for_log(enc);
+      log_info(LD_HTTP,get_lang_str(LANG_LOG_DIR_HTTP_UNRECOGNIZED_ENCODING),esc_l);
+      tor_free(esc_l);
       *compression = UNKNOWN_METHOD;
     }
   }
@@ -1425,19 +1435,24 @@ load_downloaded_routers(const char *body, smartlist_t *which,
 {
   char buf[256];
   char time_buf[ISO_TIME_LEN+1];
+  char *esc_l;
   int added = 0;
   int general = router_purpose == ROUTER_PURPOSE_GENERAL;
   format_iso_time(time_buf, get_time(NULL));
   tor_assert(source);
 
+  esc_l = esc_for_log(source);
   if (tor_snprintf(buf, sizeof(buf),
                    "@downloaded-at %s\n"
                    "@source %s\n"
-                   "%s%s%s", time_buf, escaped(source),
+                   "%s%s%s", time_buf, esc_l,
                    !general ? "@purpose " : "",
                    !general ? router_purpose_to_string(router_purpose) : "",
                    !general ? "\n" : "")<0)
+  { tor_free(esc_l);
     return added;
+  }
+  tor_free(esc_l);
 
   added = router_load_routers_from_string(body, NULL, SAVED_NOWHERE, which,
                                   descriptor_digests, buf);
@@ -1461,6 +1476,7 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
   char *body;
   char *headers;
   char *reason = NULL;
+  char *esc_l;
   size_t body_len=0, orig_len=0;
   int status_code;
   time_t date_header=0;
@@ -1495,7 +1511,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
   }
   if (!reason) reason = tor_strdup("[no reason given]");
 
-  log_debug(LD_DIR,get_lang_str(LANG_LOG_DIR_RESPONSE_RECEIVED),conn->_base.address,conn->_base.port,status_code,escaped(reason));
+  esc_l = esc_for_log(reason);
+  log_debug(LD_DIR,get_lang_str(LANG_LOG_DIR_RESPONSE_RECEIVED),conn->_base.address,conn->_base.port,status_code,esc_l);
+  tor_free(esc_l);
 
   /* now check if it's got any hints for us about our IP address. */
   if (conn->dirconn_direct) {
@@ -1541,7 +1559,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
   if (status_code == 503) {
     routerstatus_t *rs;
     trusted_dir_server_t *ds;
-    log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+    esc_l = esc_for_log(reason);
+    log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR),status_code,esc_l,conn->_base.address,conn->_base.port);
+    tor_free(esc_l);
     if ((rs = router_get_consensus_status_by_id(conn->identity_digest)))
       rs->last_dir_503_at = now;
     if ((ds = router_get_trusteddirserver_by_digest(conn->identity_digest)))
@@ -1613,7 +1633,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
       static ratelim_t warning_limit = RATELIM_INIT(3600);
       char *m;
       if ((m = rate_limit_log(&warning_limit, now))) {
-        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_2),status_code,escaped(reason),conn->_base.address,conn->_base.port,conn->requested_resource);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_2),status_code,esc_l,conn->_base.address,conn->_base.port,conn->requested_resource);
+	tor_free(esc_l);
         tor_free(m);
       }
       tor_free(body); tor_free(headers); tor_free(reason);
@@ -1672,7 +1694,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
     int r;
     if (status_code != 200) {
       int severity = (status_code == 304) ? LOG_INFO : LOG_WARN;
-      log(severity, LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_3),status_code, escaped(reason),conn->_base.address,conn->_base.port);
+      char *esc_l = esc_for_log(reason);
+      log(severity, LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_3),status_code,esc_l,conn->_base.address,conn->_base.port);
+      tor_free(esc_l);
       tor_free(body); tor_free(headers); tor_free(reason);
       networkstatus_consensus_download_failed(status_code);
       return -1;
@@ -1692,8 +1716,10 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
 
   if (conn->_base.purpose == DIR_PURPOSE_FETCH_CERTIFICATE) {
     if (status_code != 200) {
-      log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_4),status_code,escaped(reason),conn->_base.address,conn->_base.port,conn->requested_resource);
+      esc_l = esc_for_log(reason);
+      log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_4),status_code,esc_l,conn->_base.address,conn->_base.port,conn->requested_resource);
       connection_dir_download_cert_failed(conn, status_code);
+      tor_free(esc_l);
       tor_free(body); tor_free(headers); tor_free(reason);
       return -1;
     }
@@ -1711,7 +1737,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
     int st;
     log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_RECEIVED_VOTES),(int) body_len,conn->_base.address,conn->_base.port);
     if (status_code != 200) {
-      log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_5),status_code,escaped(reason),conn->_base.address,conn->_base.port,conn->requested_resource);
+      esc_l = esc_for_log(reason);
+      log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_5),status_code,esc_l,conn->_base.address,conn->_base.port,conn->requested_resource);
+      tor_free(esc_l);
       tor_free(body); tor_free(headers); tor_free(reason);
       return -1;
     }
@@ -1726,7 +1754,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
     const char *msg = NULL;
     log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_RECEIVED_SIGNATURES),(int) body_len,conn->_base.address,conn->_base.port);
     if (status_code != 200) {
-      log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_6),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+      esc_l = esc_for_log(reason);
+      log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_6),status_code,esc_l,conn->_base.address,conn->_base.port);
+      tor_free(esc_l);
       tor_free(body); tor_free(headers); tor_free(reason);
       return -1;
     }
@@ -1757,7 +1787,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
         (status_code == 400 && !strcmp(reason, "Servers unavailable."));
       /* 404 means that it didn't have them; no big deal.
        * Older (pre-0.1.1.8) servers said 400 Servers unavailable instead. */
-      log_fn(dir_okay ? LOG_INFO : LOG_WARN, LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_7),status_code,escaped(reason),conn->_base.address,conn->_base.port,conn->requested_resource);
+      char *esc_l = esc_for_log(reason);
+      log_fn(dir_okay ? LOG_INFO : LOG_WARN, LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_7),status_code,esc_l,conn->_base.address,conn->_base.port,conn->requested_resource);
+      tor_free(esc_l);
       if (!which) {
         connection_dir_download_routerdesc_failed(conn);
       } else {
@@ -1840,13 +1872,17 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
         }
         break;
       case 400:
-        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_8),escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_8),esc_l,conn->_base.address,conn->_base.port);
         control_event_server_status(LOG_WARN,
                       "BAD_SERVER_DESCRIPTOR DIRAUTH=%s:%d REASON=\"%s\"",
-                      conn->_base.address, conn->_base.port, escaped(reason));
+                      conn->_base.address, conn->_base.port, esc_l);
+	tor_free(esc_l);
         break;
       default:
-        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_9),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_9),status_code,esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
     }
     /* return 0 in all cases, since we don't want to mark any
@@ -1860,10 +1896,14 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
         }
         break;
       case 400:
-        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_10),escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_10),esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
       default:
-        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_11),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_11),status_code,esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
     }
     /* return 0 in all cases, since we don't want to mark any
@@ -1877,10 +1917,14 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
         }
         break;
       case 400:
-        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_12),escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_12),esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
       default:
-        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_13),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_13),status_code,esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
     }
     /* return 0 in all cases, since we don't want to mark any
@@ -1889,7 +1933,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
 
   if (conn->_base.purpose == DIR_PURPOSE_FETCH_RENDDESC) {
     tor_assert(conn->rend_data);
-    log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_RECEIVED),(int)body_len,status_code,escaped(reason));
+    esc_l = esc_for_log(reason);
+    log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_RECEIVED),(int)body_len,status_code,esc_l);
+    tor_free(esc_l);
     switch (status_code) {
       case 200:
         if (rend_cache_store(body, body_len, 0,conn->rend_data->onion_address) < -1) {
@@ -1911,17 +1957,23 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
          * connection_about_to_close_connection() cleans this conn up. */
         break;
       case 400:
-        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_14),escaped(reason));
+        esc_l = esc_for_log(reason);
+        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_14),esc_l);
+	tor_free(esc_l);
         break;
       default:
-        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_15),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+      	esc_l = esc_for_log(reason);
+        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_15),status_code,esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
     }
   }
 
   if (conn->_base.purpose == DIR_PURPOSE_FETCH_RENDDESC_V2) {
     tor_assert(conn->rend_data);
-    log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_RECEIVED),(int)body_len,status_code,escaped(reason));
+    esc_l = esc_for_log(reason);
+    log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_RECEIVED),(int)body_len,status_code,esc_l);
+    tor_free(esc_l);
     switch (status_code) {
       case 200:
         switch (rend_cache_store_v2_desc_as_client(body, conn->rend_data)) {
@@ -1950,28 +2002,34 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
         log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_FETCH_FAILED));
         break;
       case 400:
-        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_16),escaped(reason));
+        esc_l = esc_for_log(reason);
+        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_16),esc_l);
+	tor_free(esc_l);
         break;
       default:
-        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_17),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+        esc_l = esc_for_log(reason);
+        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_17),status_code,esc_l,conn->_base.address,conn->_base.port);
+	tor_free(esc_l);
         break;
     }
   }
 
   if (conn->_base.purpose == DIR_PURPOSE_UPLOAD_RENDDESC ||
       conn->_base.purpose == DIR_PURPOSE_UPLOAD_RENDDESC_V2) {
-    log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_UPLOADED),status_code,escaped(reason));
+    esc_l = esc_for_log(reason);
+    log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_UPLOADED),status_code,esc_l);
     switch (status_code) {
       case 200:
-        log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_UPLOADED_OK),escaped(reason));
+        log_info(LD_REND,get_lang_str(LANG_LOG_DIR_REND_DESC_UPLOADED_OK),esc_l);
         break;
       case 400:
-        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_18),escaped(reason),conn->_base.address,conn->_base.port);
+        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_18),esc_l,conn->_base.address,conn->_base.port);
         break;
       default:
-        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_20),status_code,escaped(reason),conn->_base.address,conn->_base.port);
+        log_warn(LD_REND,get_lang_str(LANG_LOG_DIR_HTTP_ERROR_20),status_code,esc_l,conn->_base.address,conn->_base.port);
         break;
     }
+    tor_free(esc_l);
   }
   note_client_request(conn->_base.purpose, was_compressed, orig_len);
   tor_free(body); tor_free(headers); tor_free(reason);
@@ -2992,7 +3050,9 @@ directory_handle_command(dir_connection_t *conn)
   else if (!strncasecmp(headers,"POST",4))
     r = directory_handle_command_post(conn, headers, body, body_len);
   else {
-    log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,get_lang_str(LANG_LOG_DIR_HTTP_UNKNOWN_COMMAND),escaped(headers));
+    char *esc_l = esc_for_log(headers);
+    log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,get_lang_str(LANG_LOG_DIR_HTTP_UNKNOWN_COMMAND),esc_l);
+    tor_free(esc_l);
     r = -1;
   }
 
@@ -3089,7 +3149,9 @@ dir_networkstatus_download_failed(smartlist_t *failed, int status_code)
     char digest[DIGEST_LEN];
     trusted_dir_server_t *dir;
     if (base16_decode(digest, DIGEST_LEN, fp, strlen(fp))<0) {
-      log_warn(LD_BUG,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT),escaped(fp));
+      char *esc_l = esc_for_log(fp);
+      log_warn(LD_BUG,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT),esc_l);
+      tor_free(esc_l);
       continue;
     }
     dir = router_get_trusteddirserver_by_digest(digest);
@@ -3250,7 +3312,9 @@ dir_routerdesc_download_failed(smartlist_t *failed, int status_code,
   {
     download_status_t *dls = NULL;
     if (base16_decode(digest, DIGEST_LEN, cp, strlen(cp)) < 0) {
-      log_warn(LD_BUG,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_2),escaped(cp));
+      char *esc_l = esc_for_log(cp);
+      log_warn(LD_BUG,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_2),esc_l);
+      tor_free(esc_l);
       continue;
     }
     if (was_extrainfo) {
@@ -3293,6 +3357,7 @@ dir_split_resource_into_fingerprint_pairs(const char *res,
 {
   smartlist_t *pairs_tmp = smartlist_create();
   smartlist_t *pairs_result = smartlist_create();
+  char *esc_l;
 
   smartlist_split_string(pairs_tmp, res, "+", 0, 0);
   if (smartlist_len(pairs_tmp)) {
@@ -3304,15 +3369,21 @@ dir_split_resource_into_fingerprint_pairs(const char *res,
   }
   SMARTLIST_FOREACH_BEGIN(pairs_tmp, char *, cp) {
     if (strlen(cp) != HEX_DIGEST_LEN*2+1) {
-      log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_3),escaped(cp));
+      esc_l = esc_for_log(cp);
+      log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_3),esc_l);
+      tor_free(esc_l);
     } else if (cp[HEX_DIGEST_LEN] != '-') {
-      log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_4),escaped(cp));
+      esc_l = esc_for_log(cp);
+      log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_4),esc_l);
+      tor_free(esc_l);
     } else {
       fp_pair_t pair;
       if (base16_decode(pair.first, DIGEST_LEN, cp, HEX_DIGEST_LEN)<0 ||
           base16_decode(pair.second,
                         DIGEST_LEN, cp+HEX_DIGEST_LEN+1, HEX_DIGEST_LEN)<0) {
-        log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_5),escaped(cp));
+	esc_l = esc_for_log(cp);
+        log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_5),esc_l);
+	tor_free(esc_l);
       } else {
         smartlist_add(pairs_result, tor_memdup(&pair, sizeof(pair)));
       }
@@ -3368,13 +3439,17 @@ int dir_split_resource_into_fingerprints(const char *resource,smartlist_t *fp_ou
 		for(i = 0; i < smartlist_len(fp_tmp); ++i)
 		{	cp = smartlist_get(fp_tmp, i);
 			if(strlen(cp) != encoded_len)
-			{	log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_6),escaped(cp));
+			{	char *esc_l = esc_for_log(cp);
+				log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_6),esc_l);
+				tor_free(esc_l);
 				smartlist_del_keeporder(fp_tmp, i--);
 			}
 			else
 			{	d = tor_malloc_zero(digest_len);
 				if(decode_hex ? (base16_decode(d, digest_len, cp, hex_digest_len)<0) : (base64_decode(d, digest_len, cp, base64_digest_len)<0))
-				{	log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_7),escaped(cp));
+				{	char *esc_l = esc_for_log(cp);
+					log_info(LD_DIR,get_lang_str(LANG_LOG_DIR_BAD_FINGERPRINT_7),esc_l);
+					tor_free(esc_l);
 					smartlist_del_keeporder(fp_tmp, i--);
 				}
 				else

@@ -1658,17 +1658,20 @@ networkstatus_compute_consensus(smartlist_t *votes,
     if (bw_weight_param) {
       int ok=0;
       char *eq = strchr(bw_weight_param, '=');
+      char *esc_l;
       if (eq) {
         weight_scale = tor_parse_long(eq+1, 10, INT32_MIN, INT32_MAX, &ok,
                                          NULL);
         if (!ok) {
-          log_warn(LD_DIR,get_lang_str(LANG_LOG_DIRVOTE_BAD_ELEMENT_IN_BW_WEIGHT),
-              escaped(bw_weight_param));
+	  esc_l = esc_for_log(bw_weight_param);
+          log_warn(LD_DIR,get_lang_str(LANG_LOG_DIRVOTE_BAD_ELEMENT_IN_BW_WEIGHT),esc_l);
+	  tor_free(esc_l);
           weight_scale = BW_WEIGHT_SCALE;
         }
       } else {
-        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIRVOTE_BAD_ELEMENT_IN_BW_WEIGHT),
-            escaped(bw_weight_param));
+        esc_l = esc_for_log(bw_weight_param);
+        log_warn(LD_DIR,get_lang_str(LANG_LOG_DIRVOTE_BAD_ELEMENT_IN_BW_WEIGHT),esc_l);
+	tor_free(esc_l);
         weight_scale = BW_WEIGHT_SCALE;
       }
     }

@@ -985,7 +985,9 @@ router_get_consensus_status_by_nickname(const char *nickname,
   /* Okay; is this name listed as Unnamed? */
   if (unnamed_server_map &&
       strmap_get_lc(unnamed_server_map, nickname)) {
-    log_info(LD_GENERAL,get_lang_str(LANG_LOG_NETWORKSTATUS_UNNAMED_SERVER),escaped(nickname));
+    char *esc_l = esc_for_log(nickname);
+    log_info(LD_GENERAL,get_lang_str(LANG_LOG_NETWORKSTATUS_UNNAMED_SERVER),esc_l);
+    tor_free(esc_l);
     return NULL;
   }
 

@@ -128,7 +128,9 @@ int rend_client_send_introduction(origin_circuit_t *introcirc,origin_circuit_t *
 	tor_assert(rendcirc->rend_data);
 	tor_assert(!rend_cmp_service_ids(introcirc->rend_data->onion_address,rendcirc->rend_data->onion_address));
 	if(rend_cache_lookup_entry(introcirc->rend_data->onion_address, -1,&entry) < 1)
-	{	log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_QUERY_WITHOUT_VALID_REND_DESC),escaped_safe_str(introcirc->rend_data->onion_address));
+	{	char *esc_l = escaped_safe_str(introcirc->rend_data->onion_address);
+		log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_QUERY_WITHOUT_VALID_REND_DESC),esc_l);
+		tor_free(esc_l);
 		rend_client_refetch_v2_renddesc(introcirc->rend_data);
 		connection_t *conn;
 		while((conn = connection_get_by_type_state_rendquery(CONN_TYPE_AP,AP_CONN_STATE_CIRCUIT_WAIT,introcirc->rend_data->onion_address)))
@@ -476,7 +478,12 @@ directory_get_from_hs_dir(const char *desc_id, const rend_data_t *rend_query)
                                           ROUTER_PURPOSE_GENERAL,
                                           1, desc_id_base32, NULL, 0, 0,
                                           rend_query);
-  log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_FETCHING_V2_DESC),rend_query->onion_address,desc_id_base32,rend_query->auth_type,(rend_query->auth_type == REND_NO_AUTH ? "[none]" :escaped_safe_str(descriptor_cookie_base64)),hs_dir->nickname,hs_dir->dir_port);
+  char *esc_l;
+  if(rend_query->auth_type == REND_NO_AUTH)
+  	esc_l = tor_strdup("[none]");
+  else	esc_l = escaped_safe_str(descriptor_cookie_base64);
+  log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_FETCHING_V2_DESC),rend_query->onion_address,desc_id_base32,rend_query->auth_type,esc_l,hs_dir->nickname,hs_dir->dir_port);
+  tor_free(esc_l);
   return 1;
 }
 
@@ -574,14 +581,19 @@ rend_client_remove_intro_point(extend_info_t *failed_intro,
   int i, r;
   rend_cache_entry_t *ent;
   connection_t *conn;
+  char *esc_l;
 
   r = rend_cache_lookup_entry(rend_query->onion_address, -1, &ent);
   if (r<0) {
-    log_warn(LD_BUG,get_lang_str(LANG_LOG_RENDCLIENT_MALFORMED_SERVICE_ID),escaped_safe_str(rend_query->onion_address));
+    esc_l = escaped_safe_str(rend_query->onion_address);
+    log_warn(LD_BUG,get_lang_str(LANG_LOG_RENDCLIENT_MALFORMED_SERVICE_ID),esc_l);
+    tor_free(esc_l);
     return -1;
   }
   if (r==0) {
-    log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_RE_FETCHING_DESC),escaped_safe_str(rend_query->onion_address));
+    esc_l = escaped_safe_str(rend_query->onion_address);
+    log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_RE_FETCHING_DESC),esc_l);
+    tor_free(esc_l);
     /* Fetch both, v0 and v2 rend descriptors in parallel. Use whichever
      * arrives first. Exception: When using client authorization, only
      * fetch v2 descriptors.*/
@@ -600,7 +612,9 @@ rend_client_remove_intro_point(extend_info_t *failed_intro,
   }
 
   if (! rend_client_any_intro_points_usable(ent)) {
-    log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_RE_FETCHING_DESC_2),escaped_safe_str(rend_query->onion_address));
+    esc_l = escaped_safe_str(rend_query->onion_address);
+    log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_RE_FETCHING_DESC_2),esc_l);
+    tor_free(esc_l);
     /* Fetch both, v0 and v2 rend descriptors in parallel. Use whichever
      * arrives first. Exception: When using client authorization, only
      * fetch v2 descriptors.*/
@@ -615,7 +629,9 @@ rend_client_remove_intro_point(extend_info_t *failed_intro,
 
     return 0;
   }
-  log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_OPTIONS),smartlist_len(ent->parsed->intro_nodes),escaped_safe_str_client(rend_query->onion_address));
+  esc_l = escaped_safe_str_client(rend_query->onion_address);
+  log_info(LD_REND,get_lang_str(LANG_LOG_RENDCLIENT_OPTIONS),smartlist_len(ent->parsed->intro_nodes),esc_l);
+  tor_free(esc_l);
   return 1;
 }
 

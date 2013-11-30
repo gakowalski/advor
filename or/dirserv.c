@@ -138,7 +138,9 @@ add_fingerprint_to_dir(const char *nickname, const char *fp,
   fingerprint = tor_strdup(fp);
   tor_strstrip(fingerprint, " ");
   if (base16_decode(d, DIGEST_LEN, fingerprint, strlen(fingerprint))) {
-    log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRSERV_FINGERPRINT_DECODE_FAILED),escaped(fp));
+    char *esc_l = esc_for_log(fp);
+    log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRSERV_FINGERPRINT_DECODE_FAILED),esc_l);
+    tor_free(esc_l);
     tor_free(fingerprint);
     return 0;
   }
@@ -397,7 +399,11 @@ dirserv_get_status_impl(const char *id_digest, const char *nickname,
   if (result & FP_UNNAMED) {
     if (should_log) {
       char *esc_contact = esc_for_log(contact);
-      log_info(LD_DIRSERV,get_lang_str(LANG_LOG_DIRSERV_FINGERPRINT_MISMATCH),nickname,esc_contact,platform ? escaped(platform) : "");
+      char *esc_l;
+      if(platform)	esc_l = esc_for_log(platform);
+      else		esc_l = tor_strdup("");
+      log_info(LD_DIRSERV,get_lang_str(LANG_LOG_DIRSERV_FINGERPRINT_MISMATCH),nickname,esc_contact,platform ? esc_l : "");
+      tor_free(esc_l);
       tor_free(esc_contact);
     }
     if (msg)
@@ -577,16 +583,19 @@ dirserv_add_multiple_descriptors(const char *desc, uint8_t purpose,
   r=ROUTER_ADDED_SUCCESSFULLY; /*Least severe return value. */
 
   format_iso_time(time_buf, now);
+  char *esc_l = esc_for_log(source);
   if (tor_snprintf(annotation_buf, sizeof(annotation_buf),
                    "@uploaded-at %s\n"
                    "@source %s\n"
-                   "%s%s%s", time_buf, escaped(source),
+                   "%s%s%s", time_buf, esc_l,
                    !general ? "@purpose " : "",
                    !general ? router_purpose_to_string(purpose) : "",
                    !general ? "\n" : "")<0) {
     *msg = "Couldn't format annotations";
+    tor_free(esc_l);
     return -1;
   }
+  tor_free(esc_l);
 
   s = desc;
   list = smartlist_create();
@@ -2273,21 +2282,24 @@ measured_bw_line_parse(measured_bw_line_t *out, const char *orig_line)
 {
   char *line = tor_strdup(orig_line);
   char *cp = line;
+  char *esc_l;
   int got_bw = 0;
   int got_node_id = 0;
   char *strtok_state; /* lame sauce d'jour */
   cp = tor_strtok_r(cp, " \t", &strtok_state);
 
   if (!cp) {
-    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_1),
-             escaped(orig_line));
+    esc_l = esc_for_log(orig_line);
+    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_1),esc_l);
+    tor_free(esc_l);
     tor_free(line);
     return -1;
   }
 
   if (orig_line[strlen(orig_line)-1] != '\n') {
-    log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_2),
-             escaped(orig_line));
+    esc_l = esc_for_log(orig_line);
+    log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_2),esc_l);
+    tor_free(esc_l);
     tor_free(line);
     return -1;
   }
@@ -2297,8 +2309,9 @@ measured_bw_line_parse(measured_bw_line_t *out, const char *orig_line)
       int parse_ok = 0;
       char *endptr;
       if (got_bw) {
-        log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_3),
-                 escaped(orig_line));
+        esc_l = esc_for_log(orig_line);
+        log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_3),esc_l);
+	tor_free(esc_l);
         tor_free(line);
         return -1;
       }
@@ -2306,16 +2319,18 @@ measured_bw_line_parse(measured_bw_line_t *out, const char *orig_line)
 
       out->bw = tor_parse_long(cp, 0, 0, LONG_MAX, &parse_ok, &endptr);
       if (!parse_ok || (*endptr && !TOR_ISSPACE(*endptr))) {
-        log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_4),
-                 escaped(orig_line));
+        esc_l = esc_for_log(orig_line);
+        log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_4),esc_l);
+	tor_free(esc_l);
         tor_free(line);
         return -1;
       }
       got_bw=1;
     } else if (strcmpstart(cp, "node_id=$") == 0) {
       if (got_node_id) {
-        log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_5),
-                 escaped(orig_line));
+        esc_l = esc_for_log(orig_line);
+        log_warn(LD_DIRSERV,get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_5),esc_l);
+	tor_free(esc_l);
         tor_free(line);
         return -1;
       }
@@ -2323,8 +2338,9 @@ measured_bw_line_parse(measured_bw_line_t *out, const char *orig_line)
 
       if (strlen(cp) != HEX_DIGEST_LEN ||
           base16_decode(out->node_id, DIGEST_LEN, cp, HEX_DIGEST_LEN)) {
-        log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_6),
-                 escaped(orig_line));
+	esc_l = esc_for_log(orig_line);
+        log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_6),esc_l);
+	tor_free(esc_l);
         tor_free(line);
         return -1;
       }
@@ -2337,8 +2353,9 @@ measured_bw_line_parse(measured_bw_line_t *out, const char *orig_line)
     tor_free(line);
     return 0;
   } else {
-    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_2),
-             escaped(orig_line));
+    esc_l = esc_for_log(orig_line);
+    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_INVALID_BW_FILE_2),esc_l);
+    tor_free(esc_l);
     tor_free(line);
     return -1;
   }
@@ -2392,8 +2409,9 @@ dirserv_read_measured_bandwidths(const char *from_file,
 
   if (!fgets(line, sizeof(line), fp)
           || !strlen(line) || line[strlen(line)-1] != '\n') {
-    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_BW_FILE_ERROR_2),
-             escaped(line));
+    char *esc_l = esc_for_log(line);
+    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_BW_FILE_ERROR_2),esc_l);
+    tor_free(esc_l);
     fclose(fp);
     return -1;
   }
@@ -2401,8 +2419,9 @@ dirserv_read_measured_bandwidths(const char *from_file,
   line[strlen(line)-1] = '\0';
   file_time = tor_parse_ulong(line, 10, 0, ULONG_MAX, &ok, NULL);
   if (!ok) {
-    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_BW_FILE_ERROR_3),
-             escaped(line));
+    char *esc_l = esc_for_log(line);
+    log_warn(LD_DIRSERV, get_lang_str(LANG_LOG_DIRECTORY_BW_FILE_ERROR_3),esc_l);
+    tor_free(esc_l);
     fclose(fp);
     return -1;
   }

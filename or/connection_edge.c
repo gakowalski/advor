@@ -277,7 +277,9 @@ int connection_edge_finished_connecting(edge_connection_t *edge_conn)
 	tor_assert(edge_conn->_base.type == CONN_TYPE_EXIT);
 	conn = TO_CONN(edge_conn);
 	tor_assert(conn->state == EXIT_CONN_STATE_CONNECTING);
-	log_info(LD_EXIT,get_lang_str(LANG_LOG_EDGE_EXIT_CONNECTION_ESTABLISHED),escaped_safe_str(conn->address),conn->port,safe_str(fmt_addr(&conn->addr)));
+	char *esc_l = escaped_safe_str(conn->address);
+	log_info(LD_EXIT,get_lang_str(LANG_LOG_EDGE_EXIT_CONNECTION_ESTABLISHED),esc_l,conn->port,safe_str(fmt_addr(&conn->addr)));
+	tor_free(esc_l);
 	rep_hist_note_exit_stream_opened(conn->port);
 	conn->state = EXIT_CONN_STATE_OPEN;
 	connection_watch_events(conn,READ_EVENT); /* stop writing, continue reading */
@@ -442,7 +444,9 @@ void circuit_discard_optional_exit_enclaves(extend_info_t *info)
 			continue;
 		tor_assert(edge_conn->socks_request);
 		if(edge_conn->chosen_exit_optional)
-		{	log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_GIVING_UP_ON_ENCLAVE_EXIT),safe_str_client(edge_conn->chosen_exit_name),escaped_safe_str_client(edge_conn->socks_request->address));
+		{	char *esc_l = escaped_safe_str_client(edge_conn->socks_request->address);
+			log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_GIVING_UP_ON_ENCLAVE_EXIT),safe_str_client(edge_conn->chosen_exit_name),esc_l);
+			tor_free(esc_l);
 			edge_conn->chosen_exit_optional = 0;
 			tor_free(edge_conn->chosen_exit_name); /* clears it */
 			/* if this port is dangerous, warn or reject it now that we don't think it'll be using an enclave. */
@@ -699,7 +703,7 @@ void addressmap_free_all(void)
 int addressmap_rewrite(char **address, time_t *expires_out)
 {	addressmap_entry_t *ent;
 	int rewrites;
-	char *cp;
+	char *cp,*esc_l;
 	time_t expires = TIME_MAX;
 	for(rewrites = 0; rewrites < 16; rewrites++)
 	{	ent = strmap_get(addressmap, *address);
@@ -707,14 +711,18 @@ int addressmap_rewrite(char **address, time_t *expires_out)
 		{	if(expires_out)	*expires_out = expires;
 			return (rewrites > 0); /* done, no rewrite needed */
 		}
-		cp = tor_strdup(escaped_safe_str_client(ent->new_address));
-		log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITE_ADDRESS),escaped_safe_str_client(*address), cp);
+		cp = escaped_safe_str_client(ent->new_address);
+		esc_l = escaped_safe_str_client(*address);
+		log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITE_ADDRESS),esc_l, cp);
 		if(ent->expires > 1 && ent->expires < expires)	expires = ent->expires;
 		tor_free(cp);
+		tor_free(esc_l);
 		if(*address)	tor_free(*address);
 		*address = tor_strdup(ent->new_address);
 	}
-	log_warn(LD_CONFIG,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITTEN_TOO_MUCH),escaped_safe_str_client(*address));
+	esc_l = escaped_safe_str_client(*address);
+	log_warn(LD_CONFIG,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITTEN_TOO_MUCH),esc_l);
+	tor_free(esc_l);
 	/* it's fine to rewrite a rewrite, but don't loop forever */
 	if(expires_out)	*expires_out = TIME_MAX;
 	return 1;
@@ -722,15 +730,17 @@ int addressmap_rewrite(char **address, time_t *expires_out)
 
 /** If we have a cached reverse DNS entry for the address stored in the <b>maxlen</b>-byte buffer <b>address</b> (typically, a dotted quad) then rewrite to the cached value and return 1. Otherwise return 0. Set *<b>expires_out</b> to the expiry time of the result, or to <b>time_max</b> if the result does not expire. */
 static int addressmap_rewrite_reverse(char **address,time_t *expires_out)
-{	unsigned char *s, *cp;
+{	unsigned char *s, *cp,*esc_l;
 	addressmap_entry_t *ent;
 	int r = 0;
 	tor_asprintf(&s,"REVERSE[%s]",*address);
 	ent = strmap_get(addressmap, s);
 	if(ent)
-	{	cp = tor_strdup(escaped_safe_str_client(ent->new_address));
-		log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITE_REVDNS),escaped_safe_str_client(s),cp);
+	{	cp = escaped_safe_str_client(ent->new_address);
+		esc_l = escaped_safe_str_client(s);
+		log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITE_REVDNS),esc_l,cp);
 		tor_free(cp);
+		tor_free(esc_l);
 		tor_free(*address);
 		*address = tor_strdup(ent->new_address);
 		r = 1;
@@ -1263,14 +1273,19 @@ int connection_ap_handshake_rewrite_and_attach(edge_connection_t *conn,origin_ci
 		});
 		if(automap)
 		{	const char *new_addr;
+			char *esc_l;
 			new_addr = addressmap_register_virtual_address(RESOLVED_TYPE_IPV4, tor_strdup(socks->address));
 			if(! new_addr)
-			{	log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_UNABLE_TO_AUTOMAP),escaped_safe_str(socks->address));
+			{	esc_l = escaped_safe_str(socks->address);
+				log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_UNABLE_TO_AUTOMAP),esc_l);
+				tor_free(esc_l);
 				connection_mark_unattached_ap(conn, END_STREAM_REASON_INTERNAL);
 				tor_free(orig_address);
 				return -1;
 			}
-			log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_AUTOMAPPING),escaped_safe_str_client(socks->address), safe_str_client(new_addr));
+			esc_l = escaped_safe_str_client(socks->address);
+			log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_AUTOMAPPING),esc_l, safe_str_client(new_addr));
+			tor_free(esc_l);
 			tor_free(socks->address);
 			socks->address = tor_strdup(new_addr);
 		}
@@ -1317,8 +1332,10 @@ int connection_ap_handshake_rewrite_and_attach(edge_connection_t *conn,origin_ci
 	addresstype = parse_extended_hostname(socks->address,remapped_to_exit | options->AllowTorHosts);
 	if(addresstype == BAD_HOSTNAME)
 	{	log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_INVALID_HOSTNAME), safe_str_client(socks->address));
-		control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",escaped(socks->address));
+		char *esc_l = esc_for_log(socks->address);
+		control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",esc_l);
 		connection_mark_unattached_ap(conn, END_STREAM_REASON_TORPROTOCOL);
+		tor_free(esc_l);
 		tor_free(orig_address);
 		return -1;
 	}
@@ -1334,8 +1351,10 @@ int connection_ap_handshake_rewrite_and_attach(edge_connection_t *conn,origin_ci
 			}
 			else
 			{	log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_MALFORMED_EXIT),safe_str(socks->address));
-				control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",escaped(socks->address));
+				char *esc_l = esc_for_log(socks->address);
+				control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",esc_l);
 				connection_mark_unattached_ap(conn, END_STREAM_REASON_TORPROTOCOL);
+				tor_free(esc_l);
 				tor_free(orig_address);
 				return -1;
 			}
@@ -1369,9 +1388,11 @@ int connection_ap_handshake_rewrite_and_attach(edge_connection_t *conn,origin_ci
 
 	if(addresstype != ONION_HOSTNAME)	/* not a hidden-service request (i.e. normal or .exit) */
 	{	if(address_is_invalid_destination(socks->address, 1))
-		{	control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",escaped(socks->address));
+		{	char *esc_l = esc_for_log(socks->address);
+			control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",esc_l);
 			log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_INVALID_HOSTNAME_2),safe_str(socks->address));
 			connection_mark_unattached_ap(conn, END_STREAM_REASON_TORPROTOCOL);
+			tor_free(esc_l);
 			tor_free(orig_address);
 			return -1;
 		}
@@ -1390,11 +1411,13 @@ int connection_ap_handshake_rewrite_and_attach(edge_connection_t *conn,origin_ci
 				return 0;
 			}
 			if(strlen(socks->address) > RELAY_PAYLOAD_SIZE)
-			{	log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESS_TOO_LARGE));
-				control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",escaped(socks->address));
+			{	char *esc_l = esc_for_log(socks->address);
+				log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESS_TOO_LARGE));
+				control_event_client_status(LOG_WARN, "SOCKS_BAD_HOSTNAME HOSTNAME=%s",esc_l);
 				connection_ap_handshake_socks_resolved(conn,RESOLVED_TYPE_ERROR_TRANSIENT,0,NULL,-1,TIME_MAX);
 				connection_mark_unattached_ap(conn,END_STREAM_REASON_SOCKSPROTOCOL | END_STREAM_REASON_FLAG_ALREADY_SOCKS_REPLIED);
 				tor_free(orig_address);
+				tor_free(esc_l);
 				return -1;
 			}
 			tor_assert(!automap);
@@ -1595,6 +1618,7 @@ connection_ap_process_natd(edge_connection_t *conn)
   int err, port_ok;
   socks_request_t *socks;
   or_options_t *options = get_options();
+  char *esc_l;
 
   tor_assert(conn);
   tor_assert(conn->_base.type == CONN_TYPE_AP);
@@ -1616,15 +1640,19 @@ connection_ap_process_natd(edge_connection_t *conn)
   }
 
   if (strcmpstart(tmp_buf, "[DEST ")) {
-    log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_NATD_HANDSHAKE_FAILED_2),escaped(tmp_buf));
+    esc_l = esc_for_log(tmp_buf);
+    log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_NATD_HANDSHAKE_FAILED_2),esc_l);
     connection_mark_unattached_ap(conn, END_STREAM_REASON_INVALID_NATD_DEST);
+    tor_free(esc_l);
     return -1;
   }
 
   daddr = tbuf = &tmp_buf[0] + 6; /* after end of "[DEST " */
   if (!(tbuf = strchr(tbuf, ' '))) {
-    log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_NATD_HANDSHAKE_FAILED_2),escaped(tmp_buf));
+    esc_l = esc_for_log(tmp_buf);
+    log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_NATD_HANDSHAKE_FAILED_2),esc_l);
     connection_mark_unattached_ap(conn, END_STREAM_REASON_INVALID_NATD_DEST);
+    tor_free(esc_l);
     return -1;
   }
   *tbuf++ = '\0';
@@ -1636,8 +1664,10 @@ connection_ap_process_natd(edge_connection_t *conn)
   socks->port = (uint16_t)
     tor_parse_long(tbuf, 10, 1, 65535, &port_ok, &daddr);
   if (!port_ok) {
-    log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_NATD_HANDSHAKE_FAILED_3),escaped(tbuf));
+    esc_l = esc_for_log(tbuf);
+    log_warn(LD_APP,get_lang_str(LANG_LOG_EDGE_NATD_HANDSHAKE_FAILED_3),esc_l);
     connection_mark_unattached_ap(conn, END_STREAM_REASON_INVALID_NATD_DEST);
+    tor_free(esc_l);
     return -1;
   }
 
@@ -2321,10 +2351,12 @@ connection_exit_connect(edge_connection_t *edge_conn)
 
   if (!connection_edge_is_rendezvous_stream(edge_conn) &&
       router_compare_to_my_exit_policy(edge_conn)) {
-    log_info(LD_EXIT,get_lang_str(LANG_LOG_EDGE_EXIT_POLICY),escaped_safe_str(conn->address), conn->port);
+    char *esc_l = escaped_safe_str(conn->address);
+    log_info(LD_EXIT,get_lang_str(LANG_LOG_EDGE_EXIT_POLICY),esc_l, conn->port);
     connection_edge_end(edge_conn, END_STREAM_REASON_EXITPOLICY);
     circuit_detach_stream(circuit_get_by_edge_conn(edge_conn), edge_conn);
     connection_free(conn);
+    tor_free(esc_l);
     return;
   }
 

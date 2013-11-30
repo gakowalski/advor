@@ -1026,6 +1026,7 @@ correct_time(time_t t, time_t now, time_t stored_at, time_t started_measuring)
 int rep_hist_load_mtbf_data(time_t now)
 {	/* XXXX won't handle being called while history is already populated. */
 	smartlist_t *lines;
+	char *esc_l;
 	const char *line = NULL;
 	int r=-1, i;
 	time_t last_downrated = 0, stored_at = 0, tracked_since = 0;
@@ -1086,7 +1087,9 @@ int rep_hist_load_mtbf_data(time_t now)
 				if(format == 1)
 				{	n = sscanf(line, "%40s %ld %lf S=%10s %8s",hexbuf, &wrl, &trw, mtbf_timebuf, mtbf_timebuf+11);
 					if(n != 3 && n != 5)
-					{	log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_COULD_NOT_SCAN_LINE),escaped(line));
+					{	esc_l = esc_for_log(line);
+						log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_COULD_NOT_SCAN_LINE),esc_l);
+						tor_free(esc_l);
 						continue;
 					}
 					have_mtbf = 1;
@@ -1102,20 +1105,30 @@ int rep_hist_load_mtbf_data(time_t now)
 						n = sscanf(mtbfline, "+MTBF %lu %lf S=%10s %8s",&wrl, &trw, mtbf_timebuf, mtbf_timebuf+11);
 						if(n == 2 || n == 4)
 							have_mtbf = 1;
-						else	log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_COULD_NOT_SCAN_LINE_2),escaped(mtbfline));
+						else
+						{	esc_l = esc_for_log(mtbfline);
+							log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_COULD_NOT_SCAN_LINE_2),esc_l);
+							tor_free(esc_l);
+						}
 					}
 					if(wfu_idx >= 0)
 					{	const char *wfuline = smartlist_get(lines, wfu_idx);
 						n = sscanf(wfuline, "+WFU %lu %lu S=%10s %8s",&wt_uptime, &total_wt_time,wfu_timebuf, wfu_timebuf+11);
 						if(n == 2 || n == 4)
 							have_wfu = 1;
-						else	log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_COULD_NOT_SCAN_LINE_3),escaped(wfuline));
+						else
+						{	esc_l = esc_for_log(wfuline);
+							log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_COULD_NOT_SCAN_LINE_3),esc_l);
+							tor_free(esc_l);
+						}
 					}
 					if(wfu_idx > i)	i = wfu_idx;
 					if(mtbf_idx > i)	i = mtbf_idx;
 				}
 				if(base16_decode(digest, DIGEST_LEN, hexbuf, HEX_DIGEST_LEN) < 0)
-				{	log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_BASE16_ERROR),escaped(hexbuf));
+				{	esc_l = esc_for_log(hexbuf);
+					log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_BASE16_ERROR),esc_l);
+					tor_free(esc_l);
 					continue;
 				}
 				hist = get_or_history(digest);
@@ -1123,7 +1136,11 @@ int rep_hist_load_mtbf_data(time_t now)
 				if(have_mtbf)
 				{	if(mtbf_timebuf[0])
 					{	mtbf_timebuf[10] = ' ';
-						if(parse_possibly_bad_iso_time(mtbf_timebuf, &start_of_run)<0)	log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_MTBF_FORMAT_ERROR_5),escaped(mtbf_timebuf));
+						if(parse_possibly_bad_iso_time(mtbf_timebuf, &start_of_run)<0)
+						{	esc_l = esc_for_log(mtbf_timebuf);
+							log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_MTBF_FORMAT_ERROR_5),esc_l);
+							tor_free(esc_l);
+						}
 					}
 					hist->start_of_run = correct_time(start_of_run, now, stored_at,tracked_since);
 					if(hist->start_of_run < latest_possible_start + wrl)	latest_possible_start = hist->start_of_run - wrl;
@@ -1133,7 +1150,11 @@ int rep_hist_load_mtbf_data(time_t now)
 				if(have_wfu)
 				{	if (wfu_timebuf[0])
 					{	wfu_timebuf[10] = ' ';
-						if(parse_possibly_bad_iso_time(wfu_timebuf, &start_of_downtime)<0)	log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_MTBF_FORMAT_ERROR_5),escaped(wfu_timebuf));
+						if(parse_possibly_bad_iso_time(wfu_timebuf, &start_of_downtime)<0)
+						{	esc_l = esc_for_log(wfu_timebuf);
+							log_warn(LD_HIST,get_lang_str(LANG_LOG_REPHIST_MTBF_FORMAT_ERROR_5),esc_l);
+							tor_free(esc_l);
+						}
 					}
 				}
 				hist->start_of_downtime = correct_time(start_of_downtime, now, stored_at,tracked_since);

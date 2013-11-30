@@ -18,8 +18,8 @@ int set_options(or_options_t *new_val, unsigned char **msg);
 void config_free_all(void);
 const char *safe_str_client(const char *address);
 const char *safe_str(const char *address);
-const char *escaped_safe_str_client(const char *address);
-const char *escaped_safe_str(const char *address);
+char *escaped_safe_str_client(const char *address);
+char *escaped_safe_str(const char *address);
 const char *get_version(void);
 const char *get_winver(void);
 

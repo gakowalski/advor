@@ -2590,7 +2590,9 @@ static int handle_control_protocolinfo(control_connection_t *conn, uint32_t len,
 		}
 	});
 	if(bad_arg)
-	{	connection_printf_to_buf(conn,"513 No such version %s\r\n",escaped(bad_arg));
+	{	char *esc_l = esc_for_log(bad_arg);
+		connection_printf_to_buf(conn,"513 No such version %s\r\n",esc_l);
+		tor_free(esc_l);
 		/* Don't tolerate bad arguments when not authenticated. */
 		if(!STATE_IS_OPEN(TO_CONN(conn)->state))	connection_mark_for_close(TO_CONN(conn));
 	}
@@ -2610,7 +2612,9 @@ static int handle_control_protocolinfo(control_connection_t *conn, uint32_t len,
 		if(!cookies && !passwd)	smartlist_add(mlist, (char*)"NULL");
 		methods = smartlist_join_strings(mlist, ",", 0, NULL);
 		smartlist_free(mlist);
-		connection_printf_to_buf(conn,"250-PROTOCOLINFO 1\r\n250-AUTH METHODS=%s%s%s\r\n250-VERSION Tor=%s\r\n250 OK\r\n",methods,cookies?" COOKIEFILE=":"",cookies?esc_cfile:"",escaped(options->torver));
+		char *esc_l = esc_for_log(options->torver);
+		connection_printf_to_buf(conn,"250-PROTOCOLINFO 1\r\n250-AUTH METHODS=%s%s%s\r\n250-VERSION Tor=%s\r\n250 OK\r\n",methods,cookies?" COOKIEFILE=":"",cookies?esc_cfile:"",esc_l);
+		tor_free(esc_l);
 		tor_free(methods);
 		tor_free(cfile);
 		tor_free(esc_cfile);
@@ -3722,7 +3726,9 @@ init_cookie_authentication(int enabled)
   crypto_rand(authentication_cookie, AUTHENTICATION_COOKIE_LEN);
   authentication_cookie_is_set = 1;
   if (write_buf_to_file(fname,authentication_cookie,AUTHENTICATION_COOKIE_LEN)) {
-    log_warn(LD_FS,get_lang_str(LANG_LOG_CONTROL_ERROR_WRITING_AUTH_COOKIE),escaped(fname));
+    char *esc_l = esc_for_log(fname);
+    log_warn(LD_FS,get_lang_str(LANG_LOG_CONTROL_ERROR_WRITING_AUTH_COOKIE),esc_l);
+    tor_free(esc_l);
     tor_free(fname);
     return -1;
   }

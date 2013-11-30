@@ -596,7 +596,10 @@ conn_close_if_marked(int i)
      * has already been closed as unflushable. */
     ssize_t sz = connection_bucket_write_limit(conn, now);
     if (!conn->hold_open_until_flushed)
-      log_info(LD_NET,get_lang_str(LANG_LOG_MAIN_CONN_FLUSH),escaped_safe_str_client(conn->address),(int)conn->s,conn_type_to_string(conn->type),conn->state,(int)conn->outbuf_flushlen,conn->marked_for_close_file,conn->marked_for_close);
+    { char *esc_l = escaped_safe_str_client(conn->address);
+      log_info(LD_NET,get_lang_str(LANG_LOG_MAIN_CONN_FLUSH),esc_l,(int)conn->s,conn_type_to_string(conn->type),conn->state,(int)conn->outbuf_flushlen,conn->marked_for_close_file,conn->marked_for_close);
+      tor_free(esc_l);
+    }
     if (conn->linked_conn) {
       retval = move_buf_to_buf(conn->linked_conn->inbuf, conn->outbuf,
                                &conn->outbuf_flushlen);
@@ -634,7 +637,9 @@ conn_close_if_marked(int i)
         severity = LOG_NOTICE;
       /* XXXX Maybe allow this to happen a certain amount per hour; it usually
        * is meaningless. */
-      log_fn(severity,LD_NET,get_lang_str(LANG_LOG_MAIN_WE_STALLED_TOO_MUCH),(int)buf_datalen(conn->outbuf),escaped_safe_str_client(conn->address),(int)conn->s,conn_type_to_string(conn->type),conn->state,conn->marked_for_close_file,conn->marked_for_close);
+      char *esc_l = escaped_safe_str_client(conn->address);
+      log_fn(severity,LD_NET,get_lang_str(LANG_LOG_MAIN_WE_STALLED_TOO_MUCH),(int)buf_datalen(conn->outbuf),esc_l,(int)conn->s,conn_type_to_string(conn->type),conn->state,conn->marked_for_close_file,conn->marked_for_close);
+      tor_free(esc_l);
     }
   }
   if(conn->hs_plugin)	plugin_notify_service(NULL,HIDDENSERVICE_UNREGISTER_CLIENT,conn,conn->port);
@@ -1587,7 +1592,6 @@ tor_free_all(int postfork)
   periodic_timer_free(second_timer);
   /* Stuff in util.c and address.c*/
   if (!postfork) {
-    escaped(NULL);
     esc_router_info(NULL);
     logs_free_all(); /* free log strings. do this last so logs keep working. */
   }

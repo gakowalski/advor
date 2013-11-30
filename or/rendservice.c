@@ -263,6 +263,7 @@ static rend_service_port_config_t *parse_port_config(const char *string,int is_d
 	uint16_t p;
 	tor_addr_t addr;
 	const char *addrport;
+	char *esc_l;
 	rend_service_port_config_t *result = NULL;
 	sl = smartlist_create();
 	smartlist_split_string(sl, string, " ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
@@ -271,7 +272,10 @@ static rend_service_port_config_t *parse_port_config(const char *string,int is_d
 	else
 	{	virtport = (int)tor_parse_long(smartlist_get(sl,0), 10, 1, 65535, NULL,NULL);
 		if(!virtport)
-			log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_INVALID_PORT_IN_PORT_CONFIG),escaped(smartlist_get(sl,0)));
+		{	esc_l = esc_for_log(smartlist_get(sl,0));
+			log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_INVALID_PORT_IN_PORT_CONFIG),esc_l);
+			tor_free(esc_l);
+		}
 		else
 		{	if(is_dll)
 			{	tor_addr_from_ipv4h(&addr,0);
@@ -295,7 +299,9 @@ static rend_service_port_config_t *parse_port_config(const char *string,int is_d
 				{	/* No addr:port, no addr -- must be port. */
 					realport = (int)tor_parse_long(addrport, 10, 1, 65535, NULL, NULL);
 					if(!realport)
-					{	log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_INVALID_PORT_IN_PORT_CONFIG_2),escaped(addrport));
+					{	esc_l = esc_for_log(addrport);
+						log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_INVALID_PORT_IN_PORT_CONFIG_2),esc_l);
+						tor_free(esc_l);
 						virtport = 0;
 					}
 					else tor_addr_from_ipv4h(&addr, 0x7F000001u); /* Default to 127.0.0.1 */
@@ -579,6 +585,7 @@ int rend_service_load_keys(void)
 {	int r = 0;
 	char fname[512];
 	char buf[1500];
+	char *esc_l;
 
 	SMARTLIST_FOREACH_BEGIN(rend_service_list, rend_service_t *, s)
 	{	if (s->private_key)
@@ -633,11 +640,15 @@ int rend_service_load_keys(void)
 			}
 			/* Prepare client_keys and hostname files. */
 			if(!start_writing_to_file(cfname,&open_cfile))
-			{	log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_ERROR_LOADING_CLIENT_KEYS),escaped(cfname));
+			{	esc_l = esc_for_log(cfname);
+				log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_ERROR_LOADING_CLIENT_KEYS),esc_l);
+				tor_free(esc_l);
 				r = -1;
 			}
 			else if(!start_writing_to_file(fname,&open_hfile))
-			{	log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_ERROR_OPENING_HOSTNAME_FILE),escaped(fname));
+			{	esc_l = esc_for_log(fname);
+				log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_ERROR_OPENING_HOSTNAME_FILE),esc_l);
+				tor_free(esc_l);
 				r = -1;
 			}
 			else
@@ -836,6 +847,7 @@ clean_accepted_intros(rend_service_t *service, time_t now)
  */
 int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,size_t request_len)
 {	char *ptr, *r_cookie;
+	char *esc_l;
 	extend_info_t *extend_info = NULL;
 	char buf[RELAY_PAYLOAD_SIZE];
 	char keys[DIGEST_LEN+CPATH_KEY_MATERIAL_LEN]; /* Holds KH, Df, Db, Kf, Kb */
@@ -866,7 +878,9 @@ int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,siz
 	tor_assert(circuit->rend_data);
 
 	base32_encode(serviceid, REND_SERVICE_ID_LEN_BASE32+1,circuit->rend_data->rend_pk_digest, REND_SERVICE_ID_LEN);
-	log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_RECEIVED),escaped(serviceid),circuit->_base.n_circ_id);
+	esc_l = esc_for_log(serviceid);
+	log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_RECEIVED),esc_l,circuit->_base.n_circ_id);
+	tor_free(esc_l);
 	/* min key length plus digest length plus nickname length */
 	if(request_len < DIGEST_LEN+REND_COOKIE_LEN+(MAX_NICKNAME_LEN+1)+DH_KEY_LEN+42)
 	{	log_warn(LD_PROTOCOL,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_TRUNCATED),circuit->_base.n_circ_id);
@@ -875,7 +889,9 @@ int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,siz
 	/* look up service depending on circuit. */
 	service = rend_service_get_by_pk_digest(circuit->rend_data->rend_pk_digest);
 	if(!service)
-	{	log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_FOR_UNRECOGNIZED_SERVICE),escaped(serviceid));
+	{	esc_l = esc_for_log(serviceid);
+		log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_FOR_UNRECOGNIZED_SERVICE),esc_l);
+		tor_free(esc_l);
 		return -1;
 	}
 	/* if descriptor version is 2, use intro key instead of service key. */
@@ -884,7 +900,9 @@ int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,siz
 	crypto_pk_get_digest(intro_key, intro_key_digest);
 	if(tor_memneq(intro_key_digest, request, DIGEST_LEN))
 	{	base32_encode(serviceid, REND_SERVICE_ID_LEN_BASE32+1,(char*)request, REND_SERVICE_ID_LEN);
-		log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_FOR_WRONG_SERVICE),escaped(serviceid));
+		esc_l = esc_for_log(serviceid);
+		log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_FOR_WRONG_SERVICE),esc_l);
+		tor_free(esc_l);
 		return -1;
 	}
 	keylen = crypto_pk_keysize(intro_key);
@@ -995,7 +1013,9 @@ int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,siz
 		len -= rp_nickname - buf; /* also remove header space used by version, if any */
 		router = router_get_by_nickname(rp_nickname, 0);
 		if(!router)
-		{	log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_ERROR_ROUTER),escaped_safe_str(rp_nickname));
+		{	esc_l = escaped_safe_str(rp_nickname);
+			log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_ERROR_ROUTER),esc_l);
+			tor_free(esc_l);
 			reason = END_CIRC_REASON_TORPROTOCOL;	/* XXXX Add a no-such-router reason? */
 			return -1;
 		}
@@ -1068,11 +1088,15 @@ int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,siz
 					if(launched)	break;
 				}
 				if(!launched)	/* give up */
-				{	log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_NOT_LAUNCHING_FIRST_HOP),escaped_safe_str(extend_info->nickname),serviceid);
+				{	esc_l = escaped_safe_str(extend_info->nickname);
+					log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_NOT_LAUNCHING_FIRST_HOP),esc_l,serviceid);
+					tor_free(esc_l);
 					reason = END_CIRC_REASON_CONNECTFAILED;
 				}
 				else
-				{	log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_ACCEPTED_INTRO),escaped_safe_str(extend_info->nickname),hexcookie,serviceid);
+				{	esc_l = escaped_safe_str(extend_info->nickname);
+					log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_ACCEPTED_INTRO),esc_l,hexcookie,serviceid);
+					tor_free(esc_l);
 					tor_assert(launched->build_state);
 					/* Fill in the circuit's state. */
 					launched->rend_data = tor_malloc_zero(sizeof(rend_data_t));

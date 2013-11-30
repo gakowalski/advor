@@ -763,8 +763,8 @@ BEGIN
 END
 
 1 VERSIONINFO
-FILEVERSION 0,3,0,18
-PRODUCTVERSION 0,3,0,18
+FILEVERSION 0,3,0,19
+PRODUCTVERSION 0,3,0,19
 FILEOS 0x00000004
 FILETYPE 0x00000002
 BEGIN
@@ -772,12 +772,12 @@ BEGIN
   BEGIN
     BLOCK "FFFF0000"
     BEGIN
-      VALUE "FileVersion", "0.3.0.18\0"
-      VALUE "ProductVersion", "0.3.0.18\0"
+      VALUE "FileVersion", "0.3.0.19\0"
+      VALUE "ProductVersion", "0.3.0.19\0"
       VALUE "CompanyName", "Albu Cristian\0"
       VALUE "FileDescription", "Advanced Onion Router\0"
       VALUE "InternalName", "AdvOR\0"
-      VALUE "LegalCopyright", "Copyright © by Albu Cristian, 2009-2013\0"
+      VALUE "LegalCopyright", "Copyright © by Albu Cristian, 2009-2014\0"
       VALUE "OriginalFilename", "AdvOR.exe\0"
       VALUE "ProductName", "Advanced Onion Router\0"
     END

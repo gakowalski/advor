@@ -1,3 +1,8 @@
+2013-11-26 Blacklist v1.04
+
+- corrected: the number of downloaded bytes was not shown unless a language file was loaded
+- a default URL was included for the "Primary threats" blacklist from iblocklist.com (it can be selected from the URL history combo box)
+
 2011-07-22 Blacklist v1.03
 
 - added support for scroll bars (requires AdvOR 0.3.0.1+)

@@ -1275,21 +1275,6 @@ esc_for_log(const char *s)
   return result;
 }
 
-/** Allocate and return a new string representing the contents of <b>s</b>,
- * surrounded by quotes and using standard C escapes.
- *
- * THIS FUNCTION IS NOT REENTRANT.  Don't call it from outside the main
- * thread.  Also, each call invalidates the last-returned value, so don't
- * try log_warn(LD_GENERAL, "%s %s", escaped(a), escaped(b));
- */
-const char *
-escaped(const char *s)
-{
-  static char *_escaped_val = NULL;
-  if(s)	_escaped_val = esc_for_log(s);
-  return _escaped_val;
-}
-
 /** Rudimentary string wrapping code: given a un-wrapped <b>string</b> (no
  * newlines!), break the string into newline-terminated lines of no more than
  * <b>width</b> characters long (not counting newline) and insert them into

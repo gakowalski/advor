@@ -32,7 +32,7 @@ errd1	db	'Error downloading %s code: ',0
 dls	db	'The blacklist was downloaded successfully.',0
 ungzipped db	'The blacklist was uncompressed successfully. Compressed: %s, decompressed: %s',0
 dtxt	db	'Blacklist downloads use your Internet Explorer proxy settings.',0
-bdown	db	' bytes downloaded',0
+bdown	db	'%s bytes downloaded',0
 msgbannedt	db	'Blacklist search results',0
 msg_ip_banned	db	'The IP %s intersects the following banned ranges:',0
 msg_range_banned db	'The IP range %s intersects the following banned ranges:',0

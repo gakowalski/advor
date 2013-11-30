@@ -996,25 +996,23 @@ safe_str(const char *address)
 /** Equivalent to escaped(safe_str_client(address)).  See reentrancy note on
  * escaped(): don't use this outside the main thread, or twice in the same
  * log statement. */
-const char *
+char *
 escaped_safe_str_client(const char *address)
 {
   if (get_options()->SafeLogging == SAFELOG_SCRUB_ALL)
-    return "[scrubbed]";
-  else
-    return escaped(address);
+    return tor_strdup("[scrubbed]");
+  return esc_for_log(address);
 }
 
 /** Equivalent to escaped(safe_str(address)).  See reentrancy note on
  * escaped(): don't use this outside the main thread, or twice in the same
  * log statement. */
-const char *
+char *
 escaped_safe_str(const char *address)
 {
   if (get_options()->SafeLogging != SAFELOG_SCRUB_NONE)
-    return "[scrubbed]";
-  else
-    return escaped(address);
+    return tor_strdup("[scrubbed]");
+  return esc_for_log(address);
 }
 
 

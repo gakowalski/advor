@@ -1440,7 +1440,10 @@ router_rebuild_descriptor(int force)
            if (is_legal)
              log_warn(LD_CONFIG,get_lang_str(LANG_LOG_ROUTER_FAMILY_ROUTER_DESC_MISSING),name);
            else
-             log_warn(LD_CONFIG,get_lang_str(LANG_LOG_ROUTER_FAMILY_ROUTER_ILLEGAL_NICKNAME),escaped(name));
+	   { char *esc_l = esc_for_log(name);
+             log_warn(LD_CONFIG,get_lang_str(LANG_LOG_ROUTER_FAMILY_ROUTER_ILLEGAL_NICKNAME),esc_l);
+	     tor_free(esc_l);
+	   }
            smartlist_add(warned_nonexistent_family, tor_strdup(name));
          }
          if (is_legal) {
@@ -1648,7 +1651,9 @@ router_new_address_suggestion(const char *suggestion,
 
   /* first, learn what the IP address actually is */
   if (!tor_inet_aton(suggestion, &in)) {
-    log_debug(LD_DIR,get_lang_str(LANG_LOG_ROUTER_MALFORMED_X_YOUR_ADDRESS_IS),escaped(suggestion));
+    char *esc_l = esc_for_log(suggestion);
+    log_debug(LD_DIR,get_lang_str(LANG_LOG_ROUTER_MALFORMED_X_YOUR_ADDRESS_IS),esc_l);
+    tor_free(esc_l);
     return;
   }
   addr = ntohl(in.s_addr);
@@ -1838,10 +1843,9 @@ router_dump_router_to_string(char *s, size_t maxlen, routerinfo_t *router,
   written = result;
 
   if (options->ContactInfo && strlen(options->ContactInfo)) {
-    const char *ci = options->ContactInfo;
-    if (strchr(ci, '\n') || strchr(ci, '\r'))
-      ci = escaped(ci);
+    char *ci = esc_for_log(options->ContactInfo);
     result = tor_snprintf(s+written,maxlen-written, "contact %s\n", ci);
+    tor_free(ci);
     if (result<0) {
       log_warn(LD_BUG,get_lang_str(LANG_LOG_ROUTER_DESC_BUFFER_TOO_SMALL_2));
       return -1;

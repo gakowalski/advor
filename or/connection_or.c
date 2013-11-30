@@ -813,7 +813,9 @@ connection_tls_start_handshake(or_connection_t *conn, int receiving)
 {
   conn->_base.state = OR_CONN_STATE_TLS_HANDSHAKING;
   conn->tls = tor_tls_new(conn->_base.s, receiving);
-  tor_tls_set_logged_address(conn->tls, escaped_safe_str(conn->_base.address));
+  char *esc_l = escaped_safe_str(conn->_base.address);
+  tor_tls_set_logged_address(conn->tls,esc_l);
+  tor_free(esc_l);
   if (!conn->tls) {
     log_warn(LD_BUG,get_lang_str(LANG_LOG_CONN_OR_TOR_TLS_NEW_FAILED));
     return -1;

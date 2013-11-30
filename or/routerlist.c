@@ -2489,8 +2489,11 @@ signed_descriptor_get_body_impl(signed_descriptor_t *desc,
   if (!with_annotations) {
     if (fast_memcmp("router ", r, 7) && fast_memcmp("extra-info ", r, 11)) {
       char *cp = tor_strndup(r, 64);
-      log_err(LD_DIR,get_lang_str(LANG_LOG_ROUTERLIST_ERROR_READING_DESC_2),desc,escaped(cp));
-      exit(1);
+      char *esc_l = esc_for_log(cp);
+      log_err(LD_DIR,get_lang_str(LANG_LOG_ROUTERLIST_ERROR_READING_DESC_2),desc,esc_l);
+      tor_free(esc_l);
+      tor_free(cp);
+      //exit(1);
     }
   }
 

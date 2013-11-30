@@ -1144,7 +1144,8 @@ void tree_build_circuit(HWND hDlg)
 	add_all_conns(TO_CIRCUIT(circ));
 	control_event_circuit_status(circ,CIRC_EVENT_LAUNCHED,0);
 	tor_free(nodelist);
-	circuit_handle_first_hop(circ);
+	if(circ->cpath)
+		circuit_handle_first_hop(circ);
 }
 
 void replace_entry(HWND hDlg,routerinfo_t *r)

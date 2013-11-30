@@ -1,3 +1,17 @@
+2013-11-30 Advanced Onion Router 0.3.0.19
+
+- corrected: possible buffer overflow when deleting Flash player's history from a truncated .sol file (thanks to anonymous for reporting this problem on sf.net)
+- corrected: when updating address maps using the "Associate addresses" dialog, the displayed exit node was changed to "new exit"
+- corrected: the number of downloaded bytes was not shown by the Blacklist plugin unless a language file was loaded
+- corrected: when an application sent a Socks5 connection request followed by an HTTP request without waiting for connection status for the Socks5 request, the Socks5 connection status was prepended to the HTTP reply; this error prevented some programs from using Socks5 with AdvOR, like the Tor Browser Bundle from torproject.org (thanks to anonymous for reporting this error on sf.net)
+- corrected: the circuit build dialog could had been used to build a circuit with no nodes (thanks to anonymous for reporting this problem on sf.net)
+- updates from the "Associate addresses" dialog are scheduled instead of updating address maps while the user changes them (thanks to anonymous for reporting this problem on sf.net)
+- the function escaped() was replaced by esc_for_log() to solve some possible non-reentrancy problems and memory leaks caused by it
+- added instructions for using the Dooble browser with AdvOR, a sample configuration file and a patch that prevents it from downloading scripts from Google to AdvOR\Help\Dooble (readme.txt, AdvOR.ini and patch-dooble.*).
+- the Blacklist plugin now has an URL for the "Primary threats" blacklist from iblocklist.com (it can be selected from the URL history combo box)
+- updated libraries: libevent-2.0.21-stable, openssl-1.0.1e, zlib-1.2.8, libntlm-1.4
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on November 5th; there are 86068 IP ranges having 102 ranges in the fake "A1" country; 102 ranges were approximated to real countries
+
 2013-04-23 Advanced Onion Router 0.3.0.18b
 
 - corrected: the variable IdentityAutoChange was initialized with a wrong value (thanks to anonymous for reporting this error on sf.net)

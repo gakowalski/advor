@@ -37,30 +37,23 @@ Stage Two:  Download, extract, compile zlib
 ---------------------------------------------
 
 Download zlib source:
-http://zlib.net/zlib-1.2.5.tar.gz
+http://zlib.net/zlib-1.2.8.tar.gz
 
 Extract zlib:
 Copy the zlib tarball into the "AdvOR" directory
 Type "cd AdvOR/"
-Type "tar zxf zlib-1.2.5.tar.gz"
+Type "tar zxf zlib-1.2.8.tar.gz"
 
 CHOICE:
 
 Make zlib.a:
-Type "cd AdvOR/zlib-1.2.5/"
+Type "cd AdvOR/zlib-1.2.8/"
 Type "./configure"
 Type "make -f win32/Makefile.gcc"
 Assuming you have MingGW installed in c:/ :
 Type cp -iv zlib1.dll c:/mingw/bin
 Type cp -iv zconf.h zlib.h c:/mingw/include
 Type cp -iv libz.a c:/mingw/lib/libzlib.a
-
-OR 
-
-Make zlib1.dll:
-Type "cd AdvOR/zlib-1.2.5/"
-Type "./configure"
-Type "make -f win32/Makefile.gcc"
 
 Done.
 
@@ -70,12 +63,12 @@ Stage Three:  Download, extract, compile openssl
 ----------------------------------------------
 
 Download openssl:
-http://www.openssl.org/source/openssl-1.0.0e.tar.gz
+http://www.openssl.org/source/openssl-1.0.1e.tar.gz
 
 Extract openssl:
 Copy the openssl tarball into the "AdvOR" directory.
 Type "cd AdvOR/"
-Type "tar zxf openssl-1.0.0e.tar.gz"
+Type "tar zxf openssl-1.0.1e.tar.gz"
 
 Edit MinGW/include/wincrypt.h and add the following lines:
 	typedef struct _PUBKEY {
@@ -89,7 +82,7 @@ Edit MinGW/include/wincrypt.h and add the following lines:
 
 
 Make openssl libraries:
-Type "cd AdvOR/openssl-1.0.0e/"
+Type "cd AdvOR/openssl-1.0.1e/"
 Type "./Configure -no-idea -no-rc5 -no-mdc2 mingw"
 Edit Makefile and remove the "test:" and "tests:" sections.
 Type "rm -rf ./test"
@@ -98,16 +91,12 @@ Type "make depend"
 Type "make"
 Type "make install"
 
-Alternatively:
-Download the pre-compiled openssl for win32.
-Install and proceed.
 
-
-Stage Four: Download, extract, and compile libevent-2.0.16
+Stage Four: Download, extract, and compile libevent-2.0.21
 ------------------------------------------------------
 
-Download the libevent 2.0.16 release:
-http://cloud.github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
+Download the libevent 2.0.21 release:
+https://github.com/downloads/libevent/libevent/libevent-2.0.21-stable.tar.gz
 
 Copy the libevent tarball into the "AdvOR" directory.
 Type "cd AdvOR"
@@ -115,15 +104,16 @@ Type "cd AdvOR"
 Extract libevent.
 
 Type "./configure --enable-static --disable-shared"
+Edit Makefile and change "SUBDIRS = . include sample test" to "SUBDIRS = . include".
 Type "make"
 Type "make install"
 
 
-Stage Five: Download, extract, and compile libntlm-1.3
+Stage Five: Download, extract, and compile libntlm-1.4
 ------------------------------------------------------
 
-Download the libntlm 1.3 release:
-http://savannah.nongnu.org/projects/libntlm/
+Download the libntlm 1.4 release:
+http://www.nongnu.org/libntlm/releases/
 
 Copy the libevent tarball into the "AdvOR" directory.
 Type "cd AdvOR"

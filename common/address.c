@@ -515,6 +515,7 @@ tor_addr_to_reverse_lookup_name(char *out, size_t outlen,
 int tor_addr_parse_mask_ports(const char *s, tor_addr_t *addr_out,maskbits_t *maskbits_out,uint16_t *port_min_out, uint16_t *port_max_out)
 {	char *base = NULL, *address, *mask = NULL, *port = NULL, *rbracket = NULL;
 	char *endptr;
+	char *esc_l;
 	int any_flag=0, v4map=0;
 	int r = 0;
 	sa_family_t family = AF_UNSPEC;
@@ -527,7 +528,9 @@ int tor_addr_parse_mask_ports(const char *s, tor_addr_t *addr_out,maskbits_t *ma
 #define MAX_ADDRESS_LENGTH (TOR_ADDR_BUF_LEN+2+(1+INET_NTOA_BUF_LEN)+12+1)
 
 	if(strlen(s) > MAX_ADDRESS_LENGTH)
-	{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_IP_TOO_LONG),escaped(s));
+	{	esc_l = esc_for_log(s);
+		log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_IP_TOO_LONG),esc_l);
+		tor_free(esc_l);
 		return -1;
 	}
 	base = tor_strdup(s);
@@ -567,7 +570,9 @@ int tor_addr_parse_mask_ports(const char *s, tor_addr_t *addr_out,maskbits_t *ma
 			tor_addr_from_in(addr_out, &in_tmp);
 		}
 		else
-		{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_IP),escaped(address));
+		{	esc_l = esc_for_log(address);
+			log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_IP),esc_l);
+			tor_free(esc_l);
 			r = -1;
 		}
 		v4map = tor_addr_is_v4(addr_out);
@@ -589,12 +594,16 @@ int tor_addr_parse_mask_ports(const char *s, tor_addr_t *addr_out,maskbits_t *ma
 					{	if(tor_inet_pton(AF_INET, mask, &v4mask) > 0)
 						{	bits = addr_mask_get_bits(ntohl(v4mask.s_addr));
 							if(bits < 0)
-							{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_IPV4_MASK),escaped(mask));
+							{	esc_l = esc_for_log(mask);
+								log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_IPV4_MASK),esc_l);
+								tor_free(esc_l);
 								r = -1;
 							}
 						}
 						else	/* Not IPv4; we don't do address-style IPv6 masks. */
-						{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK),escaped(s));
+						{	esc_l = esc_for_log(s);
+							log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK),esc_l);
+							tor_free(esc_l);
 							r = -1;
 						}
 					}
@@ -616,7 +625,9 @@ int tor_addr_parse_mask_ports(const char *s, tor_addr_t *addr_out,maskbits_t *ma
 			}
 			else
 			{	if(mask)
-				{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK_3),escaped(s));
+				{	esc_l = esc_for_log(s);
+					log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK_3),esc_l);
+					tor_free(esc_l);
 					r = -1;
 				}
 			}
@@ -637,7 +648,9 @@ int tor_addr_parse_mask_ports(const char *s, tor_addr_t *addr_out,maskbits_t *ma
 				}
 				else
 				{	if(port)
-					{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT),escaped(s));
+					{	esc_l = esc_for_log(s);
+						log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT),esc_l);
+						tor_free(esc_l);
 						r = -1;
 					}
 				}
@@ -1084,13 +1097,17 @@ parse_addr_port(int severity, const char *addrport, char **address,
     _address = tor_strndup(addrport, colon-addrport);
     _port = (int) tor_parse_long(colon+1,10,1,65535,NULL,NULL);
     if (!_port) {
-      log_fn(severity,LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT_2),escaped(colon+1));
+      char *esc_l = esc_for_log(colon+1);
+      log_fn(severity,LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT_2),esc_l);
+      tor_free(esc_l);
       ok = 0;
     }
     if (!port_out) {
       char *esc_addrport = esc_for_log(addrport);
-      log_fn(severity,LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_UNEXPECTED_PORT),escaped(colon+1),esc_addrport);
+      char *esc_l = esc_for_log(colon+1);
+      log_fn(severity,LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_UNEXPECTED_PORT),esc_l,esc_addrport);
       tor_free(esc_addrport);
+      tor_free(esc_l);
       ok = 0;
     }
   } else {
@@ -1101,7 +1118,9 @@ parse_addr_port(int severity, const char *addrport, char **address,
   if (addr) {
     /* There's an addr pointer, so we need to resolve the hostname. */
     if (tor_lookup_hostname(_address,addr)) {
-      log_fn(severity,LD_NET,get_lang_str(LANG_LOG_ADDRESS_LOOKUP_ERROR),escaped(_address));
+      char *esc_l = esc_for_log(_address);
+      log_fn(severity,LD_NET,get_lang_str(LANG_LOG_ADDRESS_LOOKUP_ERROR),esc_l);
+      tor_free(esc_l);
       ok = 0;
       *addr = 0;
     }
@@ -1180,16 +1199,21 @@ parse_port_range(const char *port, uint16_t *port_min_out,
     port_max = 65535;
   } else {
     char *endptr = NULL;
+    char *esc_l;
     port_min = (int)tor_parse_long(port, 10, 0, 65535, &ok, &endptr);
     if (!ok) {
-      log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT_3),escaped(port));
+      esc_l = esc_for_log(port);
+      log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT_3),esc_l);
+      tor_free(esc_l);
       return -1;
     } else if (endptr && *endptr == '-') {
       port = endptr+1;
       endptr = NULL;
       port_max = (int)tor_parse_long(port, 10, 1, 65536, &ok, &endptr);
       if (!ok) {
-        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT_3),escaped(port));
+        esc_l = esc_for_log(port);
+        log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_PORT_3),esc_l);
+	tor_free(esc_l);
         return -1;
       }
     } else {
@@ -1218,7 +1242,7 @@ parse_port_range(const char *port, uint16_t *port_min_out,
  */
 int parse_addr_and_port_range(const char *s, uint32_t *addr_out,maskbits_t *maskbits_out, uint16_t *port_min_out,uint16_t *port_max_out)
 {	char *address;
-	char *mask, *port, *endptr;
+	char *mask, *port, *endptr,*esc_l;
 	struct in_addr in;
 	int bits;
 	int r = 0;
@@ -1238,7 +1262,9 @@ int parse_addr_and_port_range(const char *s, uint32_t *addr_out,maskbits_t *mask
 	if(strcmp(address,"*")==0)			*addr_out = 0;
 	else if(tor_inet_aton(address, &in) != 0)	*addr_out = ntohl(in.s_addr);
 	else
-	{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_IP),escaped(address));
+	{	esc_l = esc_for_log(address);
+		log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_IP),esc_l);
+		tor_free(esc_l);
 		r = -1;
 	}
 	if(!r)
@@ -1259,13 +1285,17 @@ int parse_addr_and_port_range(const char *s, uint32_t *addr_out,maskbits_t *mask
 			else if(tor_inet_aton(mask, &in) != 0)
 			{	bits = addr_mask_get_bits(ntohl(in.s_addr));
 				if(bits < 0)
-				{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK_5),escaped(mask));
+				{	esc_l = esc_for_log(mask);
+					log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK_5),esc_l);
+					tor_free(esc_l);
 					r = -1;
 				}
 				else *maskbits_out = bits;
 			}
 			else
-			{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK_6),escaped(mask));
+			{	esc_l = esc_for_log(mask);
+				log_warn(LD_GENERAL,get_lang_str(LANG_LOG_ADDRESS_INVALID_MASK_6),esc_l);
+				tor_free(esc_l);
 				r = -1;
 			}
 		}

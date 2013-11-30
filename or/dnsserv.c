@@ -40,7 +40,6 @@ evdns_server_callback(struct evdns_server_request *req, void *_data)
   tor_addr_t tor_addr;
   uint16_t port;
   int err = DNS_ERR_NONE;
-  char *q_name;
 
   tor_assert(req);
   tor_assert(_data == NULL);
@@ -142,13 +141,12 @@ evdns_server_callback(struct evdns_server_request *req, void *_data)
   /* Now, throw the connection over to get rewritten (which will answer it
   * immediately if it's in the cache, or completely bogus, or automapped),
   * and then attached to a circuit. */
-  log_info(LD_APP,get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSING),escaped_safe_str(q->name));
-  q_name = tor_strdup(q->name); /* q could be freed in rewrite_and_attach */
+  char *esc_l = escaped_safe_str(q->name);
+  log_info(LD_APP,get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSING),esc_l);
   connection_ap_rewrite_and_attach_if_allowed(conn, NULL, NULL);
   /* Now, the connection is marked if it was bad. */
-
-  log_info(LD_APP,get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSED),escaped_safe_str(q_name));
-  tor_free(q_name);
+  log_info(LD_APP,get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSED),esc_l);
+  tor_free(esc_l);
 }
 
 /** Helper function: called whenever the client sends a resolve request to our
@@ -160,7 +158,6 @@ int
 dnsserv_launch_request(const char *name, int reverse)
 {
   edge_connection_t *conn;
-  char *q_name;
 
   /* Make a new dummy AP connection, and attach the request to it. */
   conn = edge_connection_new(CONN_TYPE_AP, AF_INET);
@@ -185,13 +182,12 @@ dnsserv_launch_request(const char *name, int reverse)
   /* Now, throw the connection over to get rewritten (which will answer it
   * immediately if it's in the cache, or completely bogus, or automapped),
   * and then attached to a circuit. */
-  log_info(LD_APP, get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSING),escaped_safe_str(name));
-  q_name = tor_strdup(name); /* q could be freed in rewrite_and_attach */
+  char *esc_l = escaped_safe_str(name);
+  log_info(LD_APP, get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSING),esc_l);
   connection_ap_rewrite_and_attach_if_allowed(conn, NULL, NULL);
   /* Now, the connection is marked if it was bad. */
-
-  log_info(LD_APP,get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSED),escaped_safe_str(q_name));
-  tor_free(q_name);
+  log_info(LD_APP,get_lang_str(LANG_LOG_DNSSERV_REQUEST_PASSED),esc_l);
+  tor_free(esc_l);
   return 0;
 }
 

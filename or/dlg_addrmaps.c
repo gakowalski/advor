@@ -2,6 +2,7 @@
 #include "dlg_util.h"
 #include "config.h"
 #include "circuitlist.h"
+#include "connection_edge.h"
 
 HWND hMainDialog,hDlgTrackedHosts=NULL;
 extern int frame;
@@ -20,6 +21,8 @@ extern or_options_t *tmpOptions;
 int __stdcall dlgTrackedHosts(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam);
 void schedule_expire_tracked_hosts(void);
 void schedule_register_addressmaps(void);
+void schedule_addrmap_change(void);
+void schedule_trackhost_change(void);
 
 void dlgTrackedHosts_trackedHostExitAdd(HWND hDlg,char *newAddr)
 {	if(!newAddr[0])	return;
@@ -168,6 +171,28 @@ void dlgTrackedHosts_addressMapRemove(HWND hDlg,char *newAddr)
 	schedule_register_addressmaps();
 }
 
+void scheduled_addrmap_change(void)
+{
+	getEditData1(hDlgTrackedHosts,14106,&tmpOptions->AddressMap,"AddressMap");
+	addressmap_clear_transient();
+	config_register_addressmaps(tmpOptions);
+	parse_virtual_addr_network(tmpOptions->VirtualAddrNetwork,0,0);
+}
+
+void scheduled_trackhost_change(void)
+{
+	char *tmp1=tor_malloc(32768);
+	GetDlgItemText(hDlgTrackedHosts,14108,tmp1,32767);
+	if(tmpOptions->TrackHostExits)
+	{	SMARTLIST_FOREACH(tmpOptions->TrackHostExits, char *, cp, tor_free(cp));
+		smartlist_clear(tmpOptions->TrackHostExits);
+	}
+	else	tmpOptions->TrackHostExits=smartlist_create();
+	smartlist_split_string(tmpOptions->TrackHostExits, tmp1, "\r\n",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
+	tor_free(tmp1);
+	addressmap_clear_transient();
+}
+
 int __stdcall dlgTrackedHosts(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 {	if(uMsg==WM_INITDIALOG)
 	{	hDlgTrackedHosts=hDlg;
@@ -188,21 +213,10 @@ int __stdcall dlgTrackedHosts(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		{	tmpOptions->TrackHostExitsExpire=GetDlgItemInt(hDlg,14109,0,0);
 		}
 		else if((LOWORD(wParam)==14106)&&(HIWORD(wParam)==EN_CHANGE))
-		{	getEditData1(hDlg,14106,&tmpOptions->AddressMap,"AddressMap");
-			schedule_expire_tracked_hosts();
-			schedule_register_addressmaps();
+		{	schedule_addrmap_change();
 		}
 		else if((LOWORD(wParam)==14108)&&(HIWORD(wParam)==EN_CHANGE))
-		{	char *tmp1=tor_malloc(32768);
-			GetDlgItemText(hDlg,14108,tmp1,32767);
-			if(tmpOptions->TrackHostExits)
-			{	SMARTLIST_FOREACH(tmpOptions->TrackHostExits, char *, cp, tor_free(cp));
-				smartlist_clear(tmpOptions->TrackHostExits);
-			}
-			else	tmpOptions->TrackHostExits=smartlist_create();
-			smartlist_split_string(tmpOptions->TrackHostExits, tmp1, "\r\n",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
-			schedule_expire_tracked_hosts();
-			tor_free(tmp1);
+		{	schedule_trackhost_change();
 		}
 	}
 	else if(uMsg==WM_VSCROLL)	PostMessage(hMainDialog,WM_USER+13,wParam,(LPARAM)hDlg);

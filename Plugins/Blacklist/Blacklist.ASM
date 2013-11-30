@@ -1212,33 +1212,24 @@ _showerr:	push	eax
 blacklistdownload	ENDP
 
 
-deflists	db	'http://iblocklist.charlieprice.org/files/tbg_primarythreats.txt',0
-		db	'http://list.iblocklist.com/files/tbg_primarythreats.txt',0
-		db	'http://list3.iblocklist.com/files/tbg_primarythreats.txt',0
-		db	'http://iblocklist.charlieprice.org/files/nxs23_ipfilterx.txt',0
-		db	'http://list.iblocklist.com/files/nxs23_ipfilterx.txt',0
-		db	'http://list3.iblocklist.com/files/nxs23_ipfilterx.txt',0
-		db	'http://iblocklist.charlieprice.org/files/bt_ads.txt',0
-		db	'http://list.iblocklist.com/files/bt_ads.txt',0
-		db	'http://list3.iblocklist.com/files/bt_ads.txt',0,0
+deflists	db	'http://list.iblocklist.com/?list=ijfqtofzixtwayqovmxn',0,0
 controls	dw	400,401,402,403,404,405,500,501,50,20,30,21,31,22,32,23,33,51,100,3,0
 dlgFunc	PROC	uses esi edi ebx hDlg:DWORD,uMsg:DWORD,wParam:DWORD,lParam:DWORD
 	.if uMsg==WM_INITDIALOG
-	;	lea	esi,deflists
-	;	.while byte ptr[esi]
-	;		invoke	SendDlgItemMessage,hDlg,300,CB_ADDSTRING,0,esi
-	;		.while byte ptr[esi]
-	;			lodsb
-	;		.endw
-	;		lodsb
-	;	.endw
+		lea	esi,deflists
+		.while byte ptr[esi]
+			invoke	SendDlgItemMessage,hDlg,300,CB_ADDSTRING,0,esi
+			.while byte ptr[esi]
+				lodsb
+			.endw
+			lodsb
+		.endw
 		AdvTor_lang_change_dialog_strings	hDlg,offset dialog_strings
 		.if lasturl
+			invoke	SendDlgItemMessage,hDlg,300,CB_ADDSTRING,0,esi
 			invoke	SetDlgItemText,hDlg,300,lasturl
 			invoke	GlobalFree,lasturl
 			mov	lasturl,0
-		.else
-			invoke	SendDlgItemMessage,hDlg,300,CB_SETCURSEL,0,0
 		.endif
 		invoke	SetDlgItemInt,hDlg,30,totalips,0
 		invoke	SetDlgItemInt,hDlg,31,totalwarns,0

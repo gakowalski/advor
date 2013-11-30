@@ -350,6 +350,7 @@ static void connection_send_socks5_connect(connection_t *conn)
 static int connection_read_https_proxy_response(connection_t *conn)
 {	char *headers;
 	char *reason=NULL;
+	char *esc_l;
 	int status_code;
 	time_t date_header;
 	switch(fetch_from_buf_http(conn->inbuf,&headers, MAX_HEADERS_SIZE,NULL, NULL, 10000, 0))
@@ -369,17 +370,23 @@ static int connection_read_https_proxy_response(connection_t *conn)
 	tor_free(headers);
 	if(!reason)	reason = tor_strdup("[no reason given]");
 	if(status_code == 200)
-	{	log_info(LD_NET,get_lang_str(LANG_LOG_CONNECTION_HTTPS_CONNECT_SUCCESS),conn->address, escaped(reason));
+	{	esc_l = esc_for_log(reason);
+		log_info(LD_NET,get_lang_str(LANG_LOG_CONNECTION_HTTPS_CONNECT_SUCCESS),conn->address,esc_l);
+		tor_free(esc_l);
 		tor_free(reason);
 		return 1;
 	}
 	/* else, bad news on the status code */
 	switch(status_code)
 	{	case 403:
-			log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_HTTPS_PROXY_REFUSE),conn->address, status_code, escaped(reason));
+			esc_l = esc_for_log(reason);
+			log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_HTTPS_PROXY_REFUSE),conn->address, status_code,esc_l);
+			tor_free(esc_l);
 			break;
 		default:
-			log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNEXPECTED_HTTPS_STATUS),status_code, escaped(reason));
+			esc_l = esc_for_log(reason);
+			log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNEXPECTED_HTTPS_STATUS),status_code,esc_l);
+			tor_free(esc_l);
 			break;
 	}
 	tor_free(reason);
@@ -405,7 +412,9 @@ static int connection_read_ntlm_proxy_response(connection_t *conn,int isdir)
 	}
 	while(TOR_ISSPACE(*headers)) headers++; /* tolerate leading whitespace */
 	if(tor_sscanf(headers, "HTTP/1.%u %u", &n1, &n2) < 2 || (n1 != 0 && n1 != 1) || (n2 < 100 || n2 >= 600))
-	{	log_warn(LD_HTTP,get_lang_str(LANG_LOG_DIR_HTTP_HEADER_PARSE_FAILED),escaped(headers));
+	{	char *esc_l = esc_for_log(headers);
+		log_warn(LD_HTTP,get_lang_str(LANG_LOG_DIR_HTTP_HEADER_PARSE_FAILED),esc_l);
+		tor_free(esc_l);
 		return -1;
 	}
 	status_code = n2;
@@ -599,7 +608,9 @@ int connection_read_proxy_handshake(connection_t *conn)
 	log_debug(LD_NET,get_lang_str(LANG_LOG_CONNECTION_LEAVING_STATE),connection_proxy_state_to_string(conn->proxy_state));
 	if(ret < 0)
 	{	if(reason)
-		{	log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNABLE_TO_CONNECT_1),conn->address, conn->port, escaped(reason));
+		{	char *esc_l = esc_for_log(reason);
+			log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNABLE_TO_CONNECT_1),conn->address, conn->port,esc_l);
+			tor_free(esc_l);
 			tor_free(reason);
 		}
 		else	log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNABLE_TO_CONNECT_2),conn->address, conn->port);
@@ -681,7 +692,9 @@ int dir_read_proxy_handshake(connection_t *conn)
 	log_debug(LD_NET,get_lang_str(LANG_LOG_CONNECTION_LEAVING_STATE),connection_proxy_state_to_string(conn->proxy_state));
 	if(ret < 0)
 	{	if(reason)
-		{	log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNABLE_TO_CONNECT_1),conn->address, conn->port, escaped(reason));
+		{	char *esc_l = esc_for_log(reason);
+			log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNABLE_TO_CONNECT_1),conn->address, conn->port,esc_l);
+			tor_free(esc_l);
 			tor_free(reason);
 		}
 		else	log_warn(LD_NET,get_lang_str(LANG_LOG_CONNECTION_UNABLE_TO_CONNECT_2),conn->address, conn->port);

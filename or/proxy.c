@@ -101,6 +101,7 @@ int connection_ap_handshake_process_socks(edge_connection_t *conn)
 
 int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, int safe_socks)
 {	unsigned int len,i,j,http_hdr;
+	char *esc_l;
 	char tmpbuf[TOR_ADDR_BUF_LEN+1];
 	tor_addr_t destaddr;
 	uint32_t destip,destipH,bw;
@@ -286,7 +287,9 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 					req->port = ntohs(get_uint16(buf->head->data+5+len));
 					buf_remove_from_front(buf, 5+len+2);
 					if(!tor_strisprint(req->address) || strchr(req->address,'\"'))
-					{	log_warn(LD_PROTOCOL,get_lang_str(LANG_LOG_BUFFERS_SOCKS_MALFORMED_HOSTNAME),req->port, escaped(req->address));
+					{	esc_l = esc_for_log(req->address);
+						log_warn(LD_PROTOCOL,get_lang_str(LANG_LOG_BUFFERS_SOCKS_MALFORMED_HOSTNAME),req->port, esc_l);
+						tor_free(esc_l);
 						return -1;
 					}
 					if(log_sockstype)
@@ -388,7 +391,9 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 				strlcpy(req->address,tmpbuf,len+1);
 			}
 			if(!tor_strisprint(req->address) || strchr(req->address,'\"'))
-			{	log_warn(LD_PROTOCOL,get_lang_str(LANG_LOG_BUFFERS_SOCKS4_MALFORMED_HOSTNAME),req->port, escaped(req->address));
+			{	esc_l = esc_for_log(req->address);
+				log_warn(LD_PROTOCOL,get_lang_str(LANG_LOG_BUFFERS_SOCKS4_MALFORMED_HOSTNAME),req->port,esc_l);
+				tor_free(esc_l);
 				return -1;
 			}
 			/* next points to the final \0 on inbuf */
@@ -445,7 +450,9 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 			{	tmp = tor_strndup(buf->head->data, 100);
 				for(len=0;len<strlen(tmp);len++) if(*(tmp+len)<32) *(tmp+len)=32;
 				log_warn(LD_APP,get_lang_str(LANG_LOG_BUFFERS_NOT_A_PROXY_REQUEST),tmp);
-				control_event_client_status(LOG_WARN,"SOCKS_UNKNOWN_PROTOCOL DATA=\"%s\"",escaped(tmp));
+				esc_l = esc_for_log(tmp);
+				control_event_client_status(LOG_WARN,"SOCKS_UNKNOWN_PROTOCOL DATA=\"%s\"",esc_l);
+				tor_free(esc_l);
 				tor_free(tmp);
 				return -1;
 			}
@@ -548,7 +555,9 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 			}
 			*(tmp+i)=0;
 			log_warn(LD_APP,get_lang_str(LANG_LOG_BUFFERS_SOCKS_VERSION_ERROR),*(buf->head->data),tmp);
-			control_event_client_status(LOG_WARN,"SOCKS_UNKNOWN_PROTOCOL DATA=\"%s\"",escaped(tmp));
+			esc_l = esc_for_log(tmp);
+			control_event_client_status(LOG_WARN,"SOCKS_UNKNOWN_PROTOCOL DATA=\"%s\"",esc_l);
+			tor_free(esc_l);
 			tor_free(tmp);
 			return -1;
 	}
@@ -591,8 +600,8 @@ void http_log(int severity,int lang_id,char *httpdata,int len,connection_t *conn
 	for(i=0;(i<len) && (j<len*4);i++)
 	{	if((unsigned char)httpdata[i]<32 && httpdata[i]!=13 && httpdata[i]!=10)
 		{	tmp[j++] = '\\';tmp[j++]='x';
-			tmp[j] = (httpdata[i] & 0x0f) | 0x30;tmp[j] = (tmp[j] > '9') ? tmp[j]+7 : tmp[j];j++;
 			tmp[j] = ((httpdata[i]>>4) & 0x0f) | 0x30;tmp[j] = (tmp[j] > '9') ? tmp[j]+7 : tmp[j];j++;
+			tmp[j] = (httpdata[i] & 0x0f) | 0x30;tmp[j] = (tmp[j] > '9') ? tmp[j]+7 : tmp[j];j++;
 		}
 		else	tmp[j++] = httpdata[i];
 	}
@@ -938,7 +947,7 @@ void proxy_handle_client_data(edge_connection_t *conn)
 
 int proxy_handle_server_data(connection_t *conn,const char *string,int len)
 {	int r = conn->outbuf->datalen;
-	if(conn->mode == CONNECTION_MODE_HTTP_SIMPLE || conn->mode == CONNECTION_MODE_HTTP_FROM_CHAIN)
+	if((conn->mode == CONNECTION_MODE_HTTP_SIMPLE || conn->mode == CONNECTION_MODE_HTTP_FROM_CHAIN) && (TO_EDGE_CONN(conn)->socks_request->has_finished))
 	{	if(!conn->incoming)
 			conn->incoming = tor_malloc(conn->incoming_len+len+16);
 		else

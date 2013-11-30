@@ -668,6 +668,7 @@ circuit_build_failed(origin_circuit_t *circ)
    * the last hop or an earlier hop. then use this info below.
    */
   int failed_at_last_hop = 0;
+  char *esc_l;
   /* If the last hop isn't open, and the second-to-last is, we failed
    * at the last hop. */
   if (circ->cpath &&
@@ -745,7 +746,9 @@ circuit_build_failed(origin_circuit_t *circ)
       /* at Bob, connecting to rend point */
       /* Don't increment failure count, since Alice may have picked
        * the rendezvous point maliciously */
-      log_info(LD_REND,get_lang_str(LANG_LOG_CIRCUITUSE_CONNECTION_FAILED_USING_REND),escaped(build_state_get_exit_nickname(circ->build_state)),failed_at_last_hop?"last":"non-last");
+      esc_l = esc_for_log(build_state_get_exit_nickname(circ->build_state));
+      log_info(LD_REND,get_lang_str(LANG_LOG_CIRCUITUSE_CONNECTION_FAILED_USING_REND),esc_l,failed_at_last_hop?"last":"non-last");
+      tor_free(esc_l);
       rend_service_relaunch_rendezvous(circ);
       break;
     /* default:
@@ -993,7 +996,9 @@ static int circuit_get_open_circ_or_launch(edge_connection_t *conn,uint8_t desir
 							return -1;
 						}
 						if(tor_addr_from_str(&addr, conn->socks_request->address) < 0)
-						{	log_info(LD_DIR,get_lang_str(LANG_LOG_CIRCUITUSE_BROKEN_ADDRESS),escaped_safe_str(conn->socks_request->address));
+						{	char *esc_l = escaped_safe_str(conn->socks_request->address);
+							log_info(LD_DIR,get_lang_str(LANG_LOG_CIRCUITUSE_BROKEN_ADDRESS),esc_l);
+							tor_free(esc_l);
 							return -1;
 						}
 						extend_info = extend_info_alloc(conn->chosen_exit_name+1,digest,NULL,&addr,conn->socks_request->port);
@@ -1033,7 +1038,10 @@ static int circuit_get_open_circ_or_launch(edge_connection_t *conn,uint8_t desir
 		if(extend_info)	extend_info_free(extend_info);
 		if(desired_circuit_purpose == CIRCUIT_PURPOSE_C_GENERAL)	/* We just caused a circuit to get built because of this stream. If this stream has caused a _lot_ of circuits to be built, that's a bad sign: we should tell the user. */
 		{	if(conn->num_circuits_launched < NUM_CIRCUITS_LAUNCHED_THRESHOLD && ++conn->num_circuits_launched == NUM_CIRCUITS_LAUNCHED_THRESHOLD)
-				log_info(LD_CIRC,get_lang_str(LANG_LOG_CIRCUITUSE_APPLICATION_REQUEST_FAILED),escaped_safe_str_client(conn->socks_request->address),conn->socks_request->port,conn->num_circuits_launched);
+			{	char *esc_l = escaped_safe_str_client(conn->socks_request->address);
+				log_info(LD_CIRC,get_lang_str(LANG_LOG_CIRCUITUSE_APPLICATION_REQUEST_FAILED),esc_l,conn->socks_request->port,conn->num_circuits_launched);
+				tor_free(esc_l);
+			}
 		}
 		else
 		{	/* help predict this next time */

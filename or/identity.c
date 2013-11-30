@@ -21,6 +21,9 @@
 #define IDENTITY_REINIT_KEYS 16
 #define IDENTITY_REGISTER_ADDRESSMAPS 32
 #define IDENTITY_ENTER_HIBERNATION 64
+#define IDENTITY_EXIT_CHANGED 128
+#define IDENTITY_ADDRMAP_CHANGED 256
+#define IDENTITY_TRACKHOST_CHANGED 512
 
 #define STORED_PROC_FIREFOX 0
 #define STORED_PROC_CHROME 1
@@ -51,6 +54,8 @@ int delete_silverlight_cookies(char **msg,int *msgsize);
 void delete_cookies(char **msg,int *msgsize);
 HANDLE open_file(char *fname,DWORD access,DWORD creationDistribution);
 void dlgForceTor_scheduledExec(void);
+void scheduled_addrmap_change(void);
+void scheduled_trackhost_change(void);
 
 void set_identity_exit(uint32_t addr)
 {	if(last_country == -1)
@@ -149,6 +154,16 @@ void schedule_stop_tor(void)
 	signewnym_pending |= IDENTITY_ENTER_HIBERNATION;
 }
 
+void schedule_addrmap_change(void)
+{
+	signewnym_pending |= IDENTITY_ADDRMAP_CHANGED;
+}
+
+void schedule_trackhost_change(void)
+{
+	signewnym_pending |= IDENTITY_TRACKHOST_CHANGED;
+}
+
 void signewnym_scheduled_tasks(void)
 {	if(signewnym_pending & IDENTITY_EXPIRE_COOKIES) free_cookies();
 	if(signewnym_pending & IDENTITY_REINIT_KEYS)		init_keys();
@@ -169,8 +184,13 @@ void signewnym_scheduled_tasks(void)
 		hibernate_go_dormant(get_time(NULL));
 		showLastExit(NULL,0);
 	}
+	if(signewnym_pending & IDENTITY_ADDRMAP_CHANGED)
+		scheduled_addrmap_change();
+	if(signewnym_pending & IDENTITY_TRACKHOST_CHANGED)
+		scheduled_trackhost_change();
+	if(signewnym_pending & IDENTITY_EXIT_CHANGED)
+		showLastExit(NULL,-1);
 	signewnym_pending = 0;
-	showLastExit(NULL,-1);
 }
 
 void signewnym_impl(time_t now,int msgshow)
@@ -220,6 +240,7 @@ void signewnym_impl(time_t now,int msgshow)
 	{	LangMessageBox(NULL,msg,LANG_MB_NEW_IDENTITY,MB_OK|MB_TASKMODAL|MB_SETFOREGROUND);
 		tor_free(msg);
 	}
+	signewnym_pending |= IDENTITY_EXIT_CHANGED;
 	last_country = -1;
 	pid_index = 0;
 }
@@ -549,8 +570,9 @@ int delete_flash_cookies(char **msg,int *msgsize)
 					{	j = GetFileSize(hFile,NULL);k = 0;
 						tmpsol = NULL;
 						if(j != 0xffffffff)
-						{	tmpsol = tor_malloc(j+1);
+						{	tmpsol = tor_malloc(j+5);
 							ReadFile(hFile,tmpsol,j,&j,NULL);
+							tmpsol[j]=0;
 							for(i=0;i<j;i++)
 							{	if(!strcasecmpstart(tmpsol+i,"\x07\x64\x6fmains"))
 								{	l = i + 10;
@@ -558,7 +580,7 @@ int delete_flash_cookies(char **msg,int *msgsize)
 									{	l += 4+(unsigned char)tmpsol[l];
 										k--;
 										solitems++;
-										if(tmpsol[l] == 0) break;
+										if(l < j && tmpsol[l] == 0) break;
 									}
 									while(l < j)
 									{	tmpsol[i++] = tmpsol[l++];

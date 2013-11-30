@@ -259,7 +259,10 @@ command_process_create_cell(cell_t *cell, or_connection_t *conn)
     routerinfo_t *router = router_get_by_digest(conn->identity_digest);
     log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,get_lang_str(LANG_LOG_COMMAND_RECEIVED_CREATE_FOR_KNOWN_CIRC),cell->circ_id, (int)(get_time(NULL) - conn->_base.timestamp_created));
     if (router)
-      log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,get_lang_str(LANG_LOG_COMMAND_ROUTER_DETAILS),router->nickname, escaped(router->platform));
+    { char *esc_l = esc_for_log(router->platform);
+      log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,get_lang_str(LANG_LOG_COMMAND_ROUTER_DETAILS),router->nickname, esc_l);
+      tor_free(esc_l);
+    }
     return;
   }
 

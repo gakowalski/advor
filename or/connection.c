@@ -830,8 +830,9 @@ create_unix_sockaddr(const char *listenaddress, char **readable_address,
   sockaddr->sun_family = AF_UNIX;
   if (strlcpy(sockaddr->sun_path, listenaddress, sizeof(sockaddr->sun_path))
       >= sizeof(sockaddr->sun_path)) {
-    log_warn(LD_CONFIG,get_lang_str(LANG_LOG_CONNECTION_UNIX_SOCKET_PATH_TOO_LONG),
-             escaped(listenaddress));
+    char *esc_l = esc_for_log(listenaddress);
+    log_warn(LD_CONFIG,get_lang_str(LANG_LOG_CONNECTION_UNIX_SOCKET_PATH_TOO_LONG),esc_l);
+    tor_free(esc_l);
     tor_free(sockaddr);
     return NULL;
   }
@@ -1284,7 +1285,9 @@ connection_connect(connection_t *conn, const char *address,
      return -1;
   }
 
-  log_debug(LD_NET,get_lang_str(LANG_LOG_CONNECTION_CONNECTING_TO),escaped_safe_str(address),port);
+  char *esc_l = escaped_safe_str(address);
+  log_debug(LD_NET,get_lang_str(LANG_LOG_CONNECTION_CONNECTING_TO),esc_l,port);
+  tor_free(esc_l);
   make_socket_reuseable(s);
 
   if (connect(s, dest_addr, dest_addr_len) < 0) {
@@ -1292,7 +1295,9 @@ connection_connect(connection_t *conn, const char *address,
     if (!ERRNO_IS_CONN_EINPROGRESS(e)) {
       /* yuck. kill it. */
       *socket_error = e;
-      log_info(LD_NET,get_lang_str(LANG_LOG_CONNECTION_CONNECT_FAILED),escaped_safe_str(address),port,tor_socket_strerror(e));
+      esc_l = escaped_safe_str(address);
+      log_info(LD_NET,get_lang_str(LANG_LOG_CONNECTION_CONNECT_FAILED),esc_l,port,tor_socket_strerror(e));
+      tor_free(esc_l);
       tor_close_socket(s);
       return -1;
     } else {
@@ -1304,7 +1309,9 @@ connection_connect(connection_t *conn, const char *address,
     client_check_address_changed(s);
 
   /* it succeeded. we're connected. */
-  log_fn(inprogress?LOG_DEBUG:LOG_INFO, LD_NET,get_lang_str(LANG_LOG_CONNECTION_CONNECT_OK),escaped_safe_str(address),port,inprogress?get_lang_str(LANG_LOG_CONNECTION_IN_PROGRESS):get_lang_str(LANG_LOG_CONNECTION_ESTABLISHED), s);
+  esc_l = escaped_safe_str(address);
+  log_fn(inprogress?LOG_DEBUG:LOG_INFO, LD_NET,get_lang_str(LANG_LOG_CONNECTION_CONNECT_OK),esc_l,port,inprogress?get_lang_str(LANG_LOG_CONNECTION_IN_PROGRESS):get_lang_str(LANG_LOG_CONNECTION_ESTABLISHED), s);
+  tor_free(esc_l);
   conn->s = s;
   if (connection_add(conn) < 0) /* no space, forget it */
     return -1;

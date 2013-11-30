@@ -2917,7 +2917,11 @@ remove_obsolete_entry_guards(void)
       char dbuf[HEX_DIGEST_LEN+1];
       tor_assert(msg);
       base16_encode(dbuf, sizeof(dbuf), entry->identity, DIGEST_LEN);
-      log_notice(LD_CIRC,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRY_GUARD_REPLACE),entry->nickname, dbuf, msg, ver?escaped(ver):"none");
+      char *esc_l = NULL;
+      if(ver)	esc_l = esc_for_log(ver);
+      else	esc_l = tor_strdup("none");
+      log_notice(LD_CIRC,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRY_GUARD_REPLACE),entry->nickname, dbuf, msg, esc_l);
+      tor_free(esc_l);
       control_event_guard(entry->nickname, entry->identity, "DROPPED");
       entry_guard_free(entry);
       smartlist_del_keeporder(entry_guards, i--);
@@ -3397,7 +3401,9 @@ entry_guards_parse_state(or_state_t *state, int set, char **msg)
       }
       if (base16_decode(d, sizeof(d), line->value, HEX_DIGEST_LEN)<0 ||
           line->value[HEX_DIGEST_LEN] != ' ') {
-        log_warn(LD_BUG,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRYGUARDADDEDBY_NOT_HEX_DIGEST),escaped(line->value));
+	char *esc_l = esc_for_log(line->value);
+        log_warn(LD_BUG,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRYGUARDADDEDBY_NOT_HEX_DIGEST),esc_l);
+	tor_free(esc_l);
         continue;
       }
       digestmap_set(added_by, d, tor_strdup(line->value+HEX_DIGEST_LEN+1));

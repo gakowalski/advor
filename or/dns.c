@@ -229,9 +229,11 @@ evdns_log_cb(int warn, const char *msg)
      * nameservers have failed' if we're completely out of nameservers;
      * otherwise, the situation is tolerable. */
     severity = LOG_INFO;
+    char *esc_l = esc_for_log(err);
     control_event_server_status(LOG_NOTICE,
                                 "NAMESERVER_STATUS NS=%s STATUS=DOWN ERR=%s",
-                                ns, escaped(err));
+                                ns, esc_l);
+    tor_free(esc_l);
     tor_free(ns);
   } else if (!strcmpstart(msg, "Nameserver ") &&
              (cp=strstr(msg, " is back up"))) {
@@ -428,10 +430,14 @@ purge_expired_resolves(time_t now)
                          STRUCT_OFFSET(cached_resolve_t, minheap_idx));
 
     if (resolve->state == CACHE_STATE_PENDING) {
-      log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_TIMEOUT),escaped_safe_str(resolve->address));
+      char *esc_l = escaped_safe_str(resolve->address);
+      log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_TIMEOUT),esc_l);
+      tor_free(esc_l);
     } else if (resolve->state == CACHE_STATE_CACHED_VALID ||
                resolve->state == CACHE_STATE_CACHED_FAILED) {
-      log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_ENTRY_EXPIRED),escaped_safe_str(resolve->address),(unsigned long)resolve->expire);
+      char *esc_l = escaped_safe_str(resolve->address);
+      log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_ENTRY_EXPIRED),esc_l,(unsigned long)resolve->expire);
+      tor_free(esc_l);
       tor_assert(!resolve->pending_connections);
     } else {
       tor_assert(resolve->state == CACHE_STATE_DONE);
@@ -666,6 +672,7 @@ dns_resolve_impl(edge_connection_t *exitconn, int is_resolve,
 {
   cached_resolve_t *resolve;
   cached_resolve_t search;
+  char *esc_l;
   pending_connection_t *pending_connection;
   routerinfo_t *me;
   tor_addr_t addr;
@@ -696,7 +703,9 @@ dns_resolve_impl(edge_connection_t *exitconn, int is_resolve,
     return -1;
   }
   if (address_is_invalid_destination(exitconn->_base.address, 0)) {
-    log(LOG_PROTOCOL_WARN, LD_EXIT,get_lang_str(LANG_LOG_DNS_INVALID_ADDRESS),escaped_safe_str(exitconn->_base.address));
+    esc_l = escaped_safe_str(exitconn->_base.address);
+    log(LOG_PROTOCOL_WARN, LD_EXIT,get_lang_str(LANG_LOG_DNS_INVALID_ADDRESS),esc_l);
+    tor_free(esc_l);
     return -1;
   }
 
@@ -721,9 +730,15 @@ dns_resolve_impl(edge_connection_t *exitconn, int is_resolve,
 
     if (!is_reverse || !is_resolve) {
       if (!is_reverse)
-        log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_INVALID_ADDRESS_2),escaped_safe_str(exitconn->_base.address));
+      { esc_l = escaped_safe_str(exitconn->_base.address);
+        log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_INVALID_ADDRESS_2),esc_l);
+	tor_free(esc_l);
+      }
       else if (!is_resolve)
-        log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_INVALID_ADDRESS_3),escaped_safe_str(exitconn->_base.address));
+      {	esc_l = escaped_safe_str(exitconn->_base.address);
+        log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_INVALID_ADDRESS_3),esc_l);
+	tor_free(esc_l);
+      }
 
       return -1;
     }
@@ -743,10 +758,14 @@ dns_resolve_impl(edge_connection_t *exitconn, int is_resolve,
         pending_connection->conn = exitconn;
         pending_connection->next = resolve->pending_connections;
         resolve->pending_connections = pending_connection;
-        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_PENDING),exitconn->_base.s,escaped_safe_str(exitconn->_base.address));
+	esc_l = escaped_safe_str(exitconn->_base.address);
+        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_PENDING),exitconn->_base.s,esc_l);
+	tor_free(esc_l);
         return 0;
       case CACHE_STATE_CACHED_VALID:
-        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CACHED_ANSWER_FOUND),exitconn->_base.s,escaped_safe_str(resolve->address));
+        esc_l = escaped_safe_str(resolve->address);
+        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CACHED_ANSWER_FOUND),exitconn->_base.s,esc_l);
+	tor_free(esc_l);
         exitconn->address_ttl = resolve->ttl;
         if (resolve->is_reverse) {
           tor_assert(is_resolve);
@@ -756,7 +775,9 @@ dns_resolve_impl(edge_connection_t *exitconn, int is_resolve,
         }
         return 1;
       case CACHE_STATE_CACHED_FAILED:
-        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CACHED_ERROR_FOUND),exitconn->_base.s,escaped_safe_str(exitconn->_base.address));
+        esc_l = escaped_safe_str(exitconn->_base.address);
+        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CACHED_ERROR_FOUND),exitconn->_base.s,esc_l);
+	tor_free(esc_l);
         return -1;
       case CACHE_STATE_DONE:
         log_err(LD_BUG,get_lang_str(LANG_LOG_DNS_DONE_STILL_IN_CACHE));
@@ -783,7 +804,9 @@ dns_resolve_impl(edge_connection_t *exitconn, int is_resolve,
   r=get_options()->ResolveTimeout;
   set_expiry(resolve, now + (r?r:30*60));
 
-  log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_LAUNCHING),escaped_safe_str(exitconn->_base.address));
+  esc_l = escaped_safe_str(exitconn->_base.address);
+  log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_LAUNCHING),esc_l);
+  tor_free(esc_l);
   assert_cache_ok();
 
   return launch_resolve(exitconn);
@@ -843,6 +866,7 @@ connection_dns_remove(edge_connection_t *conn)
   pending_connection_t *pend, *victim;
   cached_resolve_t search;
   cached_resolve_t *resolve;
+  char *esc_l;
 
   tor_assert(conn->_base.type == CONN_TYPE_EXIT);
   tor_assert(conn->_base.state == EXIT_CONN_STATE_RESOLVING);
@@ -851,7 +875,9 @@ connection_dns_remove(edge_connection_t *conn)
 
   resolve = HT_FIND(cache_map, &cache_root, &search);
   if (!resolve) {
-    log_notice(LD_BUG,get_lang_str(LANG_LOG_DNS_DROPPING_ADDRESS),escaped_safe_str(conn->_base.address));
+    esc_l = escaped_safe_str(conn->_base.address);
+    log_notice(LD_BUG,get_lang_str(LANG_LOG_DNS_DROPPING_ADDRESS),esc_l);
+    tor_free(esc_l);
     return;
   }
 
@@ -863,7 +889,9 @@ connection_dns_remove(edge_connection_t *conn)
   if (pend->conn == conn) {
     resolve->pending_connections = pend->next;
     tor_free(pend);
-    log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CONNECTION_REMOVED),conn->_base.s,escaped_safe_str(conn->_base.address));
+    esc_l = escaped_safe_str(conn->_base.address);
+    log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CONNECTION_REMOVED),conn->_base.s,esc_l);
+    tor_free(esc_l);
     return;
   } else {
     for ( ; pend->next; pend = pend->next) {
@@ -871,7 +899,9 @@ connection_dns_remove(edge_connection_t *conn)
         victim = pend->next;
         pend->next = victim->next;
         tor_free(victim);
-        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CONNECTION_REMOVED_2),conn->_base.s,escaped_safe_str(conn->_base.address));
+	esc_l = escaped_safe_str(conn->_base.address);
+        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CONNECTION_REMOVED_2),conn->_base.s,esc_l);
+	tor_free(esc_l);
         return; /* more are pending */
       }
     }
@@ -891,6 +921,7 @@ dns_cancel_pending_resolve(const char *address)
   cached_resolve_t *resolve, *tmp;
   edge_connection_t *pendconn;
   circuit_t *circ;
+  char *esc_l;
 
   strlcpy(search.address, address, sizeof(search.address));
 
@@ -903,21 +934,27 @@ dns_cancel_pending_resolve(const char *address)
      * resolve, due to finding an earlier cached error or something.  Just
      * ignore it. */
     if (resolve->pending_connections) {
-      log_warn(LD_BUG,get_lang_str(LANG_LOG_DNS_CANCEL_PENDING),escaped_safe_str(address));
+      esc_l = escaped_safe_str(address);
+      log_warn(LD_BUG,get_lang_str(LANG_LOG_DNS_CANCEL_PENDING),esc_l);
+      tor_free(esc_l);
       tor_fragile_assert();
     }
     return;
   }
 
   if (!resolve->pending_connections) {
-    log_warn(LD_BUG,get_lang_str(LANG_LOG_DNS_CANCEL_PENDING_2),escaped_safe_str(address));
+    esc_l = escaped_safe_str(address);
+    log_warn(LD_BUG,get_lang_str(LANG_LOG_DNS_CANCEL_PENDING_2),esc_l);
+    tor_free(esc_l);
     tor_fragile_assert();
     return;
   }
   tor_assert(resolve->pending_connections);
 
   /* mark all pending connections to fail */
-  log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CANCEL_PENDING_3),escaped_safe_str(address));
+  esc_l = escaped_safe_str(address);
+  log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_CANCEL_PENDING_3),esc_l);
+  tor_free(esc_l);
   while (resolve->pending_connections) {
     pend = resolve->pending_connections;
     pend->conn->_base.state = EXIT_CONN_STATE_RESOLVEFAILED;
@@ -1012,6 +1049,7 @@ dns_found_answer(const char *address, uint8_t is_reverse, uint32_t addr,
   cached_resolve_t *resolve, *removed;
   edge_connection_t *pendconn;
   circuit_t *circ;
+  char *esc_l;
 
   assert_cache_ok();
 
@@ -1021,7 +1059,10 @@ dns_found_answer(const char *address, uint8_t is_reverse, uint32_t addr,
   if (!resolve) {
     int is_test_addr = is_test_address(address);
     if (!is_test_addr)
-      log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVED_UNASKED_ADDRESS),escaped_safe_str(address));
+    { esc_l = escaped_safe_str(address);
+      log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVED_UNASKED_ADDRESS),esc_l);
+      tor_free(esc_l);
+    }
     add_answer_to_cache(address, is_reverse, addr, hostname, outcome, ttl);
     return;
   }
@@ -1032,7 +1073,10 @@ dns_found_answer(const char *address, uint8_t is_reverse, uint32_t addr,
      * VALID replace FAILED? */
     int is_test_addr = is_test_address(address);
     if (!is_test_addr)
-      log_notice(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVED_TWICE),escaped_safe_str(address));
+    { esc_l = escaped_safe_str(address);
+      log_notice(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVED_TWICE),esc_l);
+      tor_free(esc_l);
+    }
     tor_assert(resolve->pending_connections == NULL);
     return;
   }
@@ -1252,35 +1296,43 @@ evdns_callback(int result, char type, int count, int ttl, void *addresses,
     if (type == DNS_IPv4_A && count) {
       char answer_buf[INET_NTOA_BUF_LEN+1];
       struct in_addr in;
-      char *escaped_address;
+      char *escaped_address,*esc_l;
       uint32_t *addrs = addresses;
       in.s_addr = addrs[0];
       addr = ntohl(addrs[0]);
       status = DNS_RESOLVE_SUCCEEDED;
       tor_inet_ntoa(&in, answer_buf, sizeof(answer_buf));
       escaped_address = esc_for_log(string_address);
+      esc_l = escaped_safe_str(answer_buf);
 
       if (answer_is_wildcarded(answer_buf)) {
-        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_ISP_HIJACKED_ADDRESS),safe_str(escaped_address),escaped_safe_str(answer_buf));
+        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_ISP_HIJACKED_ADDRESS),safe_str(escaped_address),esc_l);
         was_wildcarded = 1;
         addr = 0;
         status = DNS_RESOLVE_FAILED_PERMANENT;
       } else {
-        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_OK),safe_str(escaped_address),escaped_safe_str(answer_buf));
+        log_debug(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_OK),safe_str(escaped_address),esc_l);
       }
       tor_free(escaped_address);
+      tor_free(esc_l);
     } else if (type == DNS_PTR && count) {
-      char *escaped_address;
+      char *escaped_address,*esc_l;
       is_reverse = 1;
       hostname = ((char**)addresses)[0];
       status = DNS_RESOLVE_SUCCEEDED;
       escaped_address = esc_for_log(string_address);
-      log_debug(LD_EXIT, get_lang_str(LANG_LOG_DNS_RESOLVE_OK),safe_str(escaped_address),escaped_safe_str(hostname));
+      esc_l = escaped_safe_str(hostname);
+      log_debug(LD_EXIT, get_lang_str(LANG_LOG_DNS_RESOLVE_OK),safe_str(escaped_address),esc_l);
       tor_free(escaped_address);
+      tor_free(esc_l);
     } else if (count) {
-      log_warn(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_NON_IPV4),escaped_safe_str(string_address));
+      char *esc_l = escaped_safe_str(string_address);
+      log_warn(LD_EXIT,get_lang_str(LANG_LOG_DNS_RESOLVE_NON_IPV4),esc_l);
+      tor_free(esc_l);
     } else {
-      log_warn(LD_BUG,get_lang_str(LANG_LOG_DNS_RESOLVE_FAILED),escaped_safe_str(string_address));
+      char *esc_l = escaped_safe_str(string_address);
+      log_warn(LD_BUG,get_lang_str(LANG_LOG_DNS_RESOLVE_FAILED),esc_l);
+      tor_free(esc_l);
     }
   } else {
     if (evdns_err_is_transient(result))
@@ -1322,12 +1374,16 @@ launch_resolve(edge_connection_t *exitconn)
                             &a, exitconn->_base.address, AF_UNSPEC, 0);
   tor_assert(the_evdns_base);
   if (r == 0) {
-    log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_LAUNCHING_REQUEST),escaped_safe_str(exitconn->_base.address));
+    char *esc_l = escaped_safe_str(exitconn->_base.address);
+    log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_LAUNCHING_REQUEST),esc_l);
+    tor_free(esc_l);
     req = evdns_base_resolve_ipv4(the_evdns_base,
                                 exitconn->_base.address, options,
                            evdns_callback, addr);
   } else if (r == 1) {
-    log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_LAUNCHING_REQUEST_2),escaped_safe_str(exitconn->_base.address));
+    char *esc_l = escaped_safe_str(exitconn->_base.address);
+    log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_LAUNCHING_REQUEST_2),esc_l);
+    tor_free(esc_l);
     if (tor_addr_family(&a) == AF_INET)
       req = evdns_base_resolve_reverse(the_evdns_base,
                                 tor_addr_to_in(&a), DNS_QUERY_NO_SEARCH,
@@ -1342,7 +1398,9 @@ launch_resolve(edge_connection_t *exitconn)
 
   r = 0;
   if (!req) {
-    log_warn(LD_EXIT,get_lang_str(LANG_LOG_DNS_ADDRESS_REJECTED),escaped_safe_str(addr),r);
+    char *esc_l = escaped_safe_str(addr);
+    log_warn(LD_EXIT,get_lang_str(LANG_LOG_DNS_ADDRESS_REJECTED),esc_l,r);
+    tor_free(esc_l);
     r = -1;
     tor_free(addr); /* There is no evdns request in progress; stop
                      * addr from getting leaked. */
@@ -1508,7 +1566,9 @@ launch_test_addresses(int fd, short event, void *args)
                               address, DNS_QUERY_NO_SEARCH, evdns_callback, a);
 
     if (!req) {
-        log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_TEST_ADDRESS_REJECTED),escaped_safe_str(address));
+      char *esc_l = escaped_safe_str(address);
+      log_info(LD_EXIT,get_lang_str(LANG_LOG_DNS_TEST_ADDRESS_REJECTED),esc_l);
+      tor_free(esc_l);
       tor_free(a);
     }
   } SMARTLIST_FOREACH_END(address);
