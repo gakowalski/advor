@@ -1274,10 +1274,12 @@ lang_str_info lang_tbl[]={
 		"These are the proxy settings you can use:\r\n\t\tAddress: 127.0.0.1\r\n\t\tPort: %d\r\n\t\t127.0.0.1:%d\r\n\t"\
 		"Use \"Intercept\" to be sure that your proxy settings are always used.\r\n\r\n\t"\
 		"Download locations:\r\n\t\t"\
+		"http://www.te-home.net/?do=work&id=advor\r\n\t\t"\
 		"http://sourceforge.net/projects/advtor/files/\r\n\t\t"\
 		"http://www.softpedia.com/get/Internet/Servers/WEB-Servers/Advanced-TOR.shtml\r\n\t"\
 		"For feature requests and bug reports use one of the following forums:\r\n\t\t"\
-		"http://sourceforge.net/p/advtor/discussion/\r\n\r\n"},
+		"http://www.te-home.net/?do=forum&id=advor\r\n\t\t"\
+		"http://sourceforge.net/p/advtor/discussion/\r\n\t(no registration required: anonymous posting is allowed)\r\n"},
 {LANG_LOG_DLG_ADDRESSMAP_ADDED,"Added to AddressMap: %s"},
 {LANG_LOG_DLG_ADDRESSMAP_REMOVED,"Removed from AddressMap: %s"},
 {LANG_LOG_DLG_NO_EXIT_FOUND,"No exit node is currently in use. Use \"Track exit for %s\" option to associate a temporary exit node for %s ."},

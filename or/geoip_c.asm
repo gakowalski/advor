@@ -725,7 +725,7 @@ geoip_ptr_get_as_path	PROC STDCALL	uses edi esi ebx buffer:DWORD,idx:DWORD,ip_1:
 				.if word ptr[esi]==65535
 					mov	eax,[esi+2+4]
 					add	eax,esi
-					.if eax<ebx && eax!=esi
+					.if eax<=ebx && eax!=esi
 						mov	esi,eax
 					.else
 						mov	eax,[esi+2]
@@ -735,7 +735,7 @@ geoip_ptr_get_as_path	PROC STDCALL	uses edi esi ebx buffer:DWORD,idx:DWORD,ip_1:
 				.else
 					mov	eax,[esi+2]
 					add	eax,esi
-					.if eax<ebx && eax!=esi
+					.if eax<=ebx && eax!=esi
 						mov	esi,eax
 					.else
 						movzx	eax,word ptr[esi]

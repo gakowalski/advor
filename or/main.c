@@ -1795,7 +1795,7 @@ get_winver(void)
 {	char *tmp;int oldSel=selectedVer;
 	if(versions[0][0]=='-') versions[0]=(char *)get_uname();
 	if(selectedVer==-1) selectedVer=crypto_rand_int(41);
-	if(options->winver==NULL) options->winver="<< Random >>";
+	if(options->winver==NULL) options->winver=tor_strdup("<< Random >>");
 	if((options->winver==NULL)||(options->winver[0]=='<')) tmp=tor_strdup(versions[selectedVer]);
 	else tmp=tor_strdup(options->winver);
 	if((oldSel!=selectedVer)&&(options->winver!=NULL)&&(options->winver[0]=='<')) log(LOG_INFO,LD_APP,get_lang_str(LANG_LOG_MAIN_RANDOM_OS),safe_str(tmp));
@@ -1831,7 +1831,7 @@ void update_best_delta_t(long t)
 }
 
 time_t set_new_time(time_t newtime)
-{	if((!options->DirFlags&DIR_FLAG_FAKE_LOCAL_TIME)||(!options->DirFlags&DIR_FLAG_USE_ROUTER_TIME)) return get_time(NULL);
+{	if((!(options->DirFlags&DIR_FLAG_FAKE_LOCAL_TIME))||(!(options->DirFlags&DIR_FLAG_USE_ROUTER_TIME))) return get_time(NULL);
 	time_t oldtime=time(NULL);
 	time_t result=newtime;
 	if(best_delta_t==delta_t)

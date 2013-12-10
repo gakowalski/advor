@@ -265,7 +265,7 @@ int __stdcall dlgSystem(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 				tmpOptions->winver=tmp1;tor_free(tmp2);
 			}
 			else if(HIWORD(wParam)==CBN_SELCHANGE)
-			{	char *tmp1=tor_malloc(512);
+			{	char *tmp1=tor_malloc(SendDlgItemMessage(hDlg,11300,CB_GETLBTEXTLEN,SendDlgItemMessage(hDlg,11300,CB_GETCURSEL,0,0),(LPARAM)0)+16);
 				SendDlgItemMessage(hDlg,11300,CB_GETLBTEXT,SendDlgItemMessage(hDlg,11300,CB_GETCURSEL,0,0),(LPARAM)tmp1);
 				char *tmp2=tmpOptions->winver;
 				tmpOptions->winver=tmp1;tor_free(tmp2);

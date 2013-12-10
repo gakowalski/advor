@@ -1,3 +1,13 @@
+2013-12-10 Advanced Onion Router 0.3.0.19a
+
+- corrected: possible buffer overflow when setting a huge OS version string
+- corrected: when changing the default OS version, a buffer that was not allocated with tor_malloc() was freed with tor_free() (thanks to anonymous for reporting this problem on sf.net)
+- corrected: a generated AS path included some extra nodes that were before the selected path in the AS tree from geoip_as.h
+- the program that imports AS path definitions and generates the geoip_as.h file is now included in the source code archive (as2asm)
+- the AS path tree was updated with latest AS path definitions from cidr-report.org; a few errors were corrected in the AS tree import algorithm
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on December 5th; there are 84715 IP ranges having 114 ranges in the fake "A1" country; 110 ranges were approximated to real countries
+- updated language strings: 1248
+
 2013-11-30 Advanced Onion Router 0.3.0.19
 
 - corrected: possible buffer overflow when deleting Flash player's history from a truncated .sol file (thanks to anonymous for reporting this problem on sf.net)
