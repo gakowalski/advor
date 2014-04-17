@@ -63,6 +63,7 @@ static int address_is_in_virtual_range(const char *addr);
 static int consider_plaintext_ports(edge_connection_t *conn, uint16_t port);
 static void clear_trackexithost_mappings(const char *exitname);
 int plugins_remap(edge_connection_t *conn,char **address,char *original_address,BOOL is_error);
+char *onionptr(char *address);
 
 
 /** An AP stream has failed/finished. If it hasn't already sent back a socks reply, send one now (based on endreason). Also set has_sent_end to 1, and mark the conn. */
@@ -1495,7 +1496,7 @@ int connection_ap_handshake_rewrite_and_attach(edge_connection_t *conn,origin_ci
 		}
 
 		conn->rend_data = tor_malloc_zero(sizeof(rend_data_t));
-		strlcpy(conn->rend_data->onion_address, socks->address,sizeof(conn->rend_data->onion_address));
+		strlcpy(conn->rend_data->onion_address, onionptr(socks->address),sizeof(conn->rend_data->onion_address));
 		log_info(LD_REND,get_lang_str(LANG_LOG_EDGE_HS_REQUEST),safe_str_client(conn->rend_data->onion_address));
 		/* see if we already have it cached */
 		r = rend_cache_lookup_entry(conn->rend_data->onion_address, -1, &entry);
@@ -2573,6 +2574,18 @@ connection_ap_can_use_exit(edge_connection_t *conn, routerinfo_t *exit)
   return 1;
 }
 
+char *onionptr(char *address)
+{	char *s1,*s2;
+	s2 = address;
+	while(1)
+	{	s1 = strchr(s2,'.');
+		if(!s1)
+			break;
+		s2 = s1+1;
+	}
+	return s2;
+}
+
 /** If address is of the form "y.onion" with a well-formed handle y:
  *     Put a NUL after y, lower-case it, and return ONION_HOSTNAME.
  *
@@ -2605,7 +2618,7 @@ hostname_type_t parse_extended_hostname(char *address, int allowdotexit)
 		return BAD_HOSTNAME;
 	}
 	*s = 0; /* nul-terminate it */
-	if((strlcpy(query, address, REND_SERVICE_ID_LEN_BASE32+1) < REND_SERVICE_ID_LEN_BASE32+1) && rend_valid_service_id(query))
+	if((strlcpy(query, onionptr(address), REND_SERVICE_ID_LEN_BASE32+1) < REND_SERVICE_ID_LEN_BASE32+1) && rend_valid_service_id(query))
 		return ONION_HOSTNAME; /* success */
 	/* otherwise, return to previous state and return 0 */
 	*s = '.';

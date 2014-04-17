@@ -63,12 +63,12 @@ Stage Three:  Download, extract, compile openssl
 ----------------------------------------------
 
 Download openssl:
-http://www.openssl.org/source/openssl-1.0.1e.tar.gz
+http://www.openssl.org/source/openssl-1.0.1g.tar.gz
 
 Extract openssl:
 Copy the openssl tarball into the "AdvOR" directory.
 Type "cd AdvOR/"
-Type "tar zxf openssl-1.0.1e.tar.gz"
+Type "tar zxf openssl-1.0.1g.tar.gz"
 
 Edit MinGW/include/wincrypt.h and add the following lines:
 	typedef struct _PUBKEY {
@@ -82,7 +82,7 @@ Edit MinGW/include/wincrypt.h and add the following lines:
 
 
 Make openssl libraries:
-Type "cd AdvOR/openssl-1.0.1e/"
+Type "cd AdvOR/openssl-1.0.1g/"
 Type "./Configure -no-idea -no-rc5 -no-mdc2 mingw"
 Edit Makefile and remove the "test:" and "tests:" sections.
 Type "rm -rf ./test"
