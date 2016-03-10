@@ -1,3 +1,9 @@
+2016-03-10 Advanced Onion Router 0.3.0.21
+
+- the OpenSSL library was updated to openssl-1.0.2g
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on March 2nd; there are 119072 IP ranges having 92 ranges in the fake "A1" country; 89 ranges were approximated to real countries
+- updated directory authorities (thanks to anonymous for reporting this problem on sf.net)
+
 2014-04-17 Advanced Onion Router 0.3.0.20
 
 - corrected: the subdomain was not removed from an .onion address when searching for its rendezvous descriptor (thanks to AyrA for reporting this problem on sf.net)
