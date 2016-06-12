@@ -1,3 +1,7 @@
+2016-06-12 Advanced Onion Router 0.3.0.24
+
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on June 7'th; there are 123310 IP ranges having 94 ranges in the fake "A1" country; 91 ranges were approximated to real countries
+
 2016-05-14 Advanced Onion Router 0.3.0.23
 
 - the OpenSSL library was updated to openssl-1.0.2h
