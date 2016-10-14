@@ -53,7 +53,7 @@ Type "cp -iv libz.a c:/mingw/lib/libzlib.a"
 Stage 3: Download, extract and compile openssl
 ----------------------------------------------
 
-Download openssl source: http://www.openssl.org/source/openssl-1.0.2h.tar.gz
+Download openssl source: http://www.openssl.org/source/openssl-1.0.2j.tar.gz
 
 Edit "mingw/include/wincrypt.h" and add following lines:
 
@@ -67,10 +67,10 @@ typedef struct _PUBKEY {
 
 BOOL WINAPI CryptEnumProvidersA(DWORD, DWORD *, DWORD, DWORD *, LPSTR, DWORD *);
 
-Copy "openssl-1.0.2h.tar.gz" into "AdvOR" directory
+Copy "openssl-1.0.2j.tar.gz" into "AdvOR" directory
 Type "cd AdvOR"
-Type "tar zxf openssl-1.0.2h.tar.gz"
-Type "cd openssl-1.0.2h"
+Type "tar zxf openssl-1.0.2j.tar.gz"
+Type "cd openssl-1.0.2j"
 Type "./Configure -no-idea -no-rc5 -no-mdc2 mingw"
 Edit "Makefile" and remove "test:" and "tests:" sections
 Type "rm -rf ./test"
@@ -123,7 +123,7 @@ Extract "advor-#.#.#.#src.zip" into "AdvOR" directory
 Type "cd AdvOR"
 Type "./configure --disable-dependency-tracking"
 Type "make"
-You now have a "AdvOR.exe" in "or" directory
+You now have "AdvOR.exe" in "or" directory
 
 
 
