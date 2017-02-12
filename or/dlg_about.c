@@ -29,7 +29,7 @@ char frame8txt[]="\r\n\t\tAdvanced Onion Router v"
 	"\t* Neither the names of the copyright owners nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\r\n"
 	"\tThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit (http://www.openssl.org/), zlib (http://www.zlib.net/) and libevent (http://www.monkey.org/~provos/libevent/).\r\n\r\n"
 	"[2] Graphical Interface, extensions added to Tor client and AdvOR.dll are distributed under Creative Commons Attribution - NonCommercial - ShareAlike license ( http://creativecommons.org/licenses/by-nc-sa/3.0/ ).\r\n\r\n"
-	"Copyright © by Albu Cristian, 2009-2016\r\n";
+	"Copyright © by Albu Cristian, 2009-2017\r\n";
 
 int __stdcall dlgAbout(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 {	if(uMsg==WM_INITDIALOG)
