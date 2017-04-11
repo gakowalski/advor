@@ -568,13 +568,13 @@ time_t geoip_dirreq_stats_write(time_t now)
 		if(start_writing_to_file(filename,&open_file))
 		{	unsigned char *str=NULL;
 			tor_asprintf(&str,"dirreq-stats-end %s (%d s)\ndirreq-v3-ips %s\ndirreq-v2-ips %s\n",written,(unsigned) (now - start_of_dirreq_stats_interval),data_v3 ? data_v3 : "", data_v2 ? data_v2 : "");
-			write_string_to_file(open_file,str);tor_free(str);
+			write_string_to_file(open_file,(char *)str);tor_free(str);
 			tor_free(data_v2);
 			tor_free(data_v3);
 			data_v2 = geoip_get_request_history(GEOIP_CLIENT_NETWORKSTATUS_V2);
 			data_v3 = geoip_get_request_history(GEOIP_CLIENT_NETWORKSTATUS);
 			tor_asprintf(&str,"dirreq-v3-reqs %s\ndirreq-v2-reqs %s\n",data_v3 ? data_v3 : "", data_v2 ? data_v2 : "");
-			write_string_to_file(open_file,str);tor_free(str);
+			write_string_to_file(open_file,(char *)str);tor_free(str);
 			tor_free(data_v2);
 			tor_free(data_v3);
 			SMARTLIST_FOREACH(geoip_countries, geoip_country_t *, c,
@@ -585,23 +585,23 @@ time_t geoip_dirreq_stats_write(time_t now)
 				ns_v3_responses[i] = round_uint32_to_next_multiple_of(ns_v3_responses[i], RESPONSE_GRANULARITY);
 			}
 			tor_asprintf(&str,"dirreq-v3-resp ok=%u,not-enough-sigs=%u,unavailable=%u,not-found=%u,not-modified=%u,busy=%u\ndirreq-v2-resp ok=%u,unavailable=%u,not-found=%u,not-modified=%u,busy=%u\n",ns_v3_responses[GEOIP_SUCCESS],ns_v3_responses[GEOIP_REJECT_NOT_ENOUGH_SIGS],ns_v3_responses[GEOIP_REJECT_UNAVAILABLE],ns_v3_responses[GEOIP_REJECT_NOT_FOUND],ns_v3_responses[GEOIP_REJECT_NOT_MODIFIED],ns_v3_responses[GEOIP_REJECT_BUSY],ns_v2_responses[GEOIP_SUCCESS],ns_v2_responses[GEOIP_REJECT_UNAVAILABLE],ns_v2_responses[GEOIP_REJECT_NOT_FOUND],ns_v2_responses[GEOIP_REJECT_NOT_MODIFIED],ns_v2_responses[GEOIP_REJECT_BUSY]);
-			write_string_to_file(open_file,str);tor_free(str);
+			write_string_to_file(open_file,(char *)str);tor_free(str);
 			memset(ns_v2_responses, 0, sizeof(ns_v2_responses));
 			memset(ns_v3_responses, 0, sizeof(ns_v3_responses));
 			if(!geoip_get_mean_shares(now, &v2_share, &v3_share))
 			{	tor_asprintf(&str,"dirreq-v2-share %0.2lf%%\ndirreq-v3-share %0.2lf%%\n", v2_share*100,v3_share*100);
-				write_string_to_file(open_file,str);tor_free(str);
+				write_string_to_file(open_file,(char *)str);tor_free(str);
 			}
 			data_v2 = geoip_get_dirreq_history(GEOIP_CLIENT_NETWORKSTATUS_V2,DIRREQ_DIRECT);
 			data_v3 = geoip_get_dirreq_history(GEOIP_CLIENT_NETWORKSTATUS,DIRREQ_DIRECT);
 			tor_asprintf(&str,"dirreq-v3-direct-dl %s\ndirreq-v2-direct-dl %s\n",data_v3 ? data_v3 : "", data_v2 ? data_v2 : "");
-			write_string_to_file(open_file,str);tor_free(str);
+			write_string_to_file(open_file,(char *)str);tor_free(str);
 			tor_free(data_v2);
 			tor_free(data_v3);
 			data_v2 = geoip_get_dirreq_history(GEOIP_CLIENT_NETWORKSTATUS_V2,DIRREQ_TUNNELED);
 			data_v3 = geoip_get_dirreq_history(GEOIP_CLIENT_NETWORKSTATUS,DIRREQ_TUNNELED);
 			tor_asprintf(&str,"dirreq-v3-tunneled-dl %s\ndirreq-v2-tunneled-dl %s\n",data_v3 ? data_v3 : "", data_v2 ? data_v2 : "");
-			write_string_to_file(open_file,str);tor_free(str);
+			write_string_to_file(open_file,(char *)str);tor_free(str);
 		}
 		if(open_file)	finish_writing_to_file(open_file,1);
 		tor_free(filename);
@@ -660,27 +660,27 @@ static char *bridge_stats_extrainfo = NULL;		/** Most recent bridge statistics f
 
 /** Return a newly allocated string holding our bridge usage stats by country in a format suitable for inclusion in an extrainfo document. Return NULL on failure.  */
 static char *format_bridge_stats_extrainfo(time_t now)
-{	unsigned char *out = NULL, *data = NULL;
+{	char *out = NULL, *data = NULL;
 	long duration = now - start_of_bridge_stats_interval;
 	char written[ISO_TIME_LEN+1];
 	if(duration < 0)	return NULL;
 	format_iso_time(written, now);
 	data = geoip_get_client_history(GEOIP_CLIENT_CONNECT);
 	if(!data)	data = tor_malloc_zero(10);
-	tor_asprintf(&out,"bridge-stats-end %s (%ld s)\nbridge-ips %s\n",written,duration,data);
+	tor_asprintf((unsigned char **)&out,"bridge-stats-end %s (%ld s)\nbridge-ips %s\n",written,duration,data);
 	tor_free(data);
 	return out;
 }
 
 /** Return a newly allocated string holding our bridge usage stats by country in a format suitable for the answer to a controller request. Return NULL on failure.  */
 static char *format_bridge_stats_controller(time_t now)
-{	unsigned char *out = NULL, *data = NULL;
+{	char *out = NULL, *data = NULL;
 	char started[ISO_TIME_LEN+1];
 	(void) now;
 	format_iso_time(started, start_of_bridge_stats_interval);
 	data = geoip_get_client_history(GEOIP_CLIENT_CONNECT);
 	if(!data)	data = tor_malloc_zero(10);
-	tor_asprintf(&out,"TimeStarted=\"%s\" CountrySummary=%s",started, data);
+	tor_asprintf((unsigned char **)&out,"TimeStarted=\"%s\" CountrySummary=%s",started, data);
 	tor_free(data);
 	return out;
 }
@@ -763,7 +763,7 @@ time_t geoip_entry_stats_write(time_t now)
 		format_iso_time(written, now);
 		unsigned char *str;
 		tor_asprintf(&str,"entry-stats-end %s (%u s)\nentry-ips %s\n",written, (unsigned) (now - start_of_entry_stats_interval),data ? data : "");
-		append_bytes_to_file(filename, str, strlen(str),0);
+		append_bytes_to_file(filename, (char *)str, strlen((char *)str),0);
 		tor_free(str);
 		start_of_entry_stats_interval = now;
 		tor_free(filename);

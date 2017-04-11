@@ -291,10 +291,10 @@ int randomize_wmplayer(void)
 		return 0;
 	}
 	keytype = REG_SZ;
-	i = RegQueryValueEx(hKey,wmvaluename,NULL,&keytype,regdata,&datasize);
+	i = RegQueryValueEx(hKey,wmvaluename,NULL,&keytype,(LPBYTE)regdata,&datasize);
 	if(i == ERROR_MORE_DATA)
 	{	tor_free(regdata);regdata = tor_malloc(datasize+1);
-		i = RegQueryValueEx(hKey,wmvaluename,NULL,&keytype,regdata,&datasize);
+		i = RegQueryValueEx(hKey,wmvaluename,NULL,&keytype,(LPBYTE)regdata,&datasize);
 	}
 	if(i==ERROR_SUCCESS)
 	{	log(LOG_DEBUG,LD_APP,get_lang_str(LANG_IDENTITY_WMPLAYER_ID),regdata);
@@ -315,7 +315,7 @@ int randomize_wmplayer(void)
 	}
 	sprintf(regdata,"{%04X%04X-%04X-%04X-%04X-%04X%04X%04X}",(unsigned int)get_seed(120)&0xffff,(unsigned int)get_seed(177)&0xffff,(unsigned int)get_seed(75)&0xffff,(unsigned int)get_seed(22)&0xffff,(unsigned int)get_seed(201)&0xffff,(unsigned int)get_seed(190)&0xffff,(unsigned int)get_seed(155)&0xffff,(unsigned int)get_seed(45)&0xffff);
 	log(LOG_INFO,LD_APP,get_lang_str(LANG_IDENTITY_WMPLAYER_ID_CHANGED),regdata);
-	RegSetValueEx(hKey,wmvaluename,0,REG_SZ,regdata,strlen(regdata));
+	RegSetValueEx(hKey,wmvaluename,0,REG_SZ,(LPBYTE)regdata,strlen(regdata));
 	RegCloseKey(hKey);
 	tor_free(regdata);
 	return 1;
@@ -351,19 +351,19 @@ void get_appdata(void)
 			if(RegOpenKeyEx(HKEY_CURRENT_USER,folderskey,0,KEY_ALL_ACCESS,&hKey) == ERROR_SUCCESS)
 			{	datasize = MAX_PATH - 1;
 				keytype = REG_SZ;
-				i = RegQueryValueEx(hKey,folder1,NULL,&keytype,appdata,&datasize);
+				i = RegQueryValueEx(hKey,folder1,NULL,&keytype,(LPBYTE)appdata,&datasize);
 				if(i == ERROR_MORE_DATA)
 				{	tor_free(appdata);appdata = tor_malloc(datasize+1);
-					i = RegQueryValueEx(hKey,folder1,NULL,&keytype,appdata,&datasize);
+					i = RegQueryValueEx(hKey,folder1,NULL,&keytype,(LPBYTE)appdata,&datasize);
 				}
 				if(i != ERROR_SUCCESS)
 				{	char *tmp = tor_malloc(MAX_PATH);
 					datasize = MAX_PATH - 1;
 					keytype = REG_SZ;
-					i = RegQueryValueEx(hKey,folder3,NULL,&keytype,tmp,&datasize);
+					i = RegQueryValueEx(hKey,folder3,NULL,&keytype,(LPBYTE)tmp,&datasize);
 					if(i == ERROR_MORE_DATA)
 					{	tor_free(tmp);tmp = tor_malloc(datasize+1);
-						i = RegQueryValueEx(hKey,folder3,NULL,&keytype,tmp,&datasize);
+						i = RegQueryValueEx(hKey,folder3,NULL,&keytype,(LPBYTE)tmp,&datasize);
 					}
 					if(i==ERROR_SUCCESS)
 					{	tor_free(appdata);
@@ -409,19 +409,19 @@ void get_appdata(void)
 			if(RegOpenKeyEx(HKEY_CURRENT_USER,folderskey,0,KEY_ALL_ACCESS,&hKey) == ERROR_SUCCESS)
 			{	datasize = MAX_PATH - 1;
 				keytype = REG_SZ;
-				i = RegQueryValueEx(hKey,folder2,NULL,&keytype,localappdata,&datasize);
+				i = RegQueryValueEx(hKey,folder2,NULL,&keytype,(LPBYTE)localappdata,&datasize);
 				if(i == ERROR_MORE_DATA)
 				{	tor_free(localappdata);localappdata = tor_malloc(datasize+1);
-					i = RegQueryValueEx(hKey,folder2,NULL,&keytype,localappdata,&datasize);
+					i = RegQueryValueEx(hKey,folder2,NULL,&keytype,(LPBYTE)localappdata,&datasize);
 				}
 				if(i != ERROR_SUCCESS)
 				{	char *tmp = tor_malloc(MAX_PATH);
 					datasize = MAX_PATH - 1;
 					keytype = REG_SZ;
-					i = RegQueryValueEx(hKey,folder3,NULL,&keytype,tmp,&datasize);
+					i = RegQueryValueEx(hKey,folder3,NULL,&keytype,(LPBYTE)tmp,&datasize);
 					if(i == ERROR_MORE_DATA)
 					{	tor_free(tmp);tmp = tor_malloc(datasize+1);
-						i = RegQueryValueEx(hKey,folder3,NULL,&keytype,tmp,&datasize);
+						i = RegQueryValueEx(hKey,folder3,NULL,&keytype,(LPBYTE)tmp,&datasize);
 					}
 					if(i==ERROR_SUCCESS)
 					{	tor_free(localappdata);
@@ -989,7 +989,7 @@ void delete_opera_cookies(DWORD pid,const char *module,char **msg,int *msgsize,c
 							BYTE *param2 = modbase + i + 11 + 4 + *(DWORD *)(&dlldata[i+11]);
 							DWORD result = 0;
 							HANDLE hThread=NULL;
-							RelinkStoredProc(pid,STORED_PROC_OPERA,dlldata,(uint32_t)param1,(uint32_t)param2);
+							RelinkStoredProc(pid,STORED_PROC_OPERA,(char *)dlldata,(uint32_t)param1,(uint32_t)param2);
 							LPVOID lpBuffer = VirtualAllocEx(hProcess,NULL,2048,MEM_COMMIT,PAGE_EXECUTE_READWRITE);
 							if(lpBuffer)
 							{	WriteProcessMemory(hProcess,lpBuffer,dlldata,2048,&result);
@@ -1180,7 +1180,7 @@ void delete_firefox_cookies(DWORD pid,const char *module,char **msg,int *msgsize
 					ReadProcessMemory(hProcess,modbasetmp,dlldata,(modsizetmp>=102400)?102400:modsizetmp,&bytesread);
 					if(bytesread > 16)
 					{	for(i=0;i<bytesread-16;i++)
-						{	if(!strcmp(dlldata+i,"DELETE FROM moz_cookies"))
+						{	if(!strcmp((char *)dlldata+i,"DELETE FROM moz_cookies"))
 							{	strbase = (uint32_t)(modbasetmp+i);
 								break;
 							}
@@ -1244,7 +1244,7 @@ void delete_firefox_cookies(DWORD pid,const char *module,char **msg,int *msgsize
 							ReadProcessMemory(hProcess,modbasetmp,dlldata,(modsizetmp>=102400)?102400:modsizetmp,&bytesread);
 							if(bytesread > 16)
 							{	for(i=0;i<bytesread-16;i++)
-								{	if((*(uint32_t *)(&dlldata[i])==0xaaab6710) && (*(uint32_t *)(&dlldata[i+4])==0x11d50f2c) && (*(uint32_t *)(&dlldata[i+8])==0x10003ba5) && strcasecmp(dlldata+i+16,"cookie"))
+								{	if((*(uint32_t *)(&dlldata[i])==0xaaab6710) && (*(uint32_t *)(&dlldata[i+4])==0x11d50f2c) && (*(uint32_t *)(&dlldata[i+8])==0x10003ba5) && strcasecmp((char *)dlldata+i+16,"cookie"))
 									{	constructor = *(uint32_t *)(&dlldata[i+20]);
 										lastid = (uint32_t)(modbasetmp+i);
 										if(constructor > (uint32_t)modbase && constructor < (uint32_t)(modbase+modsize))
@@ -1317,7 +1317,7 @@ void delete_firefox_cookies(DWORD pid,const char *module,char **msg,int *msgsize
 						if(constructor)
 						{	DWORD result = 0;
 							HANDLE hThread=NULL;
-							RelinkStoredProc(pid,STORED_PROC_FIREFOX,dlldata,(uint32_t)constructor,(uint32_t)bestproc);
+							RelinkStoredProc(pid,STORED_PROC_FIREFOX,(char *)dlldata,(uint32_t)constructor,(uint32_t)bestproc);
 							LPVOID lpBuffer = VirtualAllocEx(hProcess,NULL,2048,MEM_COMMIT,PAGE_EXECUTE_READWRITE);
 							if(lpBuffer)
 							{	WriteProcessMemory(hProcess,lpBuffer,dlldata,2048,&result);

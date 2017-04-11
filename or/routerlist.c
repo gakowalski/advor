@@ -1308,8 +1308,8 @@ routerlist_add_family(smartlist_t *sl, routerinfo_t *router)
 
   /* If the user declared any families locally, honor those too. */
   for (cl = options->NodeFamilies; cl; cl = cl->next) {
-    if (router_nickname_is_in_list(router, cl->value)) {
-      add_nickname_list_to_smartlist(sl, cl->value, 0);
+    if (router_nickname_is_in_list(router, (char *)cl->value)) {
+      add_nickname_list_to_smartlist(sl, (char *)cl->value, 0);
     }
   }
 }
@@ -1343,8 +1343,8 @@ routers_in_same_family(routerinfo_t *r1, routerinfo_t *r2)
     return 1;
 
   for (cl = options->NodeFamilies; cl; cl = cl->next) {
-    if (router_nickname_is_in_list(r1, cl->value) &&
-        router_nickname_is_in_list(r2, cl->value))
+    if (router_nickname_is_in_list(r1, (char *)cl->value) &&
+        router_nickname_is_in_list(r2, (char *)cl->value))
       return 1;
   }
   return 0;
@@ -4403,7 +4403,7 @@ void update_consensus_router_descriptor_downloads(time_t now,int is_vote,network
 		{	++n_would_reject;
 			continue; /* We would throw it out immediately. */
 		}
-		if(!options->DirFlags&DIR_FLAG_NO_AUTO_UPDATE && !directory_caches_dir_info(options) && !client_would_use_router(rs, now, options))
+		if((options->DirFlags&DIR_FLAG_NO_AUTO_UPDATE)==0 && !directory_caches_dir_info(options) && !client_would_use_router(rs, now, options))
 		{	++n_wouldnt_use;
 			continue; /* We would never use it ourself. */
 		}
@@ -4466,7 +4466,7 @@ update_router_descriptor_downloads(time_t now)
   /* If we're a server that doesn't have a configured address, we rely on
    * directory fetches to learn when our address changes.  So if we haven't
    * tried to get any routerdescs in a long time, try a dummy fetch now. */
-  if (((!options->Address && server_mode(options))||((options->EnforceDistinctSubnets&4)!=0 && !last_guessed_ip)) && last_routerdesc_download_attempted + DUMMY_DOWNLOAD_INTERVAL < now && last_dummy_download + DUMMY_DOWNLOAD_INTERVAL < now && !options->DirFlags&DIR_FLAG_NO_AUTO_UPDATE) {
+  if (((!options->Address && server_mode(options))||((options->EnforceDistinctSubnets&4)!=0 && !last_guessed_ip)) && last_routerdesc_download_attempted + DUMMY_DOWNLOAD_INTERVAL < now && last_dummy_download + DUMMY_DOWNLOAD_INTERVAL < now && !(options->DirFlags&DIR_FLAG_NO_AUTO_UPDATE)) {
     last_dummy_download = now;
     directory_get_from_dirserver(DIR_PURPOSE_FETCH_SERVERDESC,
                                  ROUTER_PURPOSE_GENERAL, "authority.z",
@@ -4600,7 +4600,7 @@ count_usable_descriptors(int *num_present, int *num_usable,
                          routerset_t *in_set, int exit_only)
 {
 	*num_present = 0, *num_usable=0;
-	if(!options->DirFlags&DIR_FLAG_NO_AUTO_UPDATE)
+	if(!(options->DirFlags&DIR_FLAG_NO_AUTO_UPDATE))
 	{	SMARTLIST_FOREACH(consensus->routerstatus_list, routerstatus_t *, rs,
 		{
 			if(exit_only && ! rs->is_exit)

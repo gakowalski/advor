@@ -1932,7 +1932,7 @@ router_dump_router_to_string(char *s, size_t maxlen, routerinfo_t *router,
  * and write the file contents starting with that line to *<b>out</b>.
  * Return 1 for success, 0 if the file does not exist, or -1 if the file
  * does not contain a line matching these criteria or other failure. */
-static int load_stats_file(unsigned char *filename, const char *end_line, time_t now,unsigned char **out)
+static int load_stats_file(char *filename, const char *end_line, time_t now,char **out)
 {	int r = -1;
 	char *fname = get_datadir_fname(filename);
 	char *contents, *start = NULL, *tmp, timestr[ISO_TIME_LEN+1];
@@ -1978,14 +1978,14 @@ int extrainfo_dump_to_string(char **s_out, extrainfo_t *extrainfo,crypto_pk_env_
 	int result=0;
 	static int write_stats_to_extrainfo = 1;
 	char sig[DIROBJ_MAX_SIG_LEN+1];
-	unsigned char *s, *pre, *contents, *cp, *s_dup = NULL;
+	char *s, *pre, *contents, *cp, *s_dup = NULL;
 	time_t now = get_time(NULL);
 	smartlist_t *chunks = smartlist_create();
 	extrainfo_t *ei_tmp = NULL;
 	base16_encode(identity, sizeof(identity),extrainfo->cache_info.identity_digest,DIGEST_LEN);
 	format_iso_time(published, extrainfo->cache_info.published_on);
 	bandwidth_usage = rep_hist_get_bandwidth_lines();
-	tor_asprintf(&pre, "extra-info %s %s\npublished %s\n%s",extrainfo->nickname,identity,published,bandwidth_usage);
+	tor_asprintf((unsigned char **)&pre, "extra-info %s %s\npublished %s\n%s",extrainfo->nickname,identity,published,bandwidth_usage);
 	tor_free(bandwidth_usage);
 	smartlist_add(chunks, pre);
 	if(options->ExtraInfoStatistics && write_stats_to_extrainfo)

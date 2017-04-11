@@ -67,24 +67,35 @@
 #define DISABLE_ENGINES
 #endif
 
-/** Macro: is k a valid RSA public or private key? */
-#define PUBLIC_KEY_OK(k) ((k) && (k)->key && (k)->key->n)
-/** Macro: is k a valid RSA private key? */
-#define PRIVATE_KEY_OK(k) ((k) && (k)->key && (k)->key->p)
+#define OPENSSL_VER(a,b,c,d,e)                                \
+  (((a)<<28) |                                                \
+   ((b)<<20) |                                                \
+   ((c)<<12) |                                                \
+   ((d)<< 4) |                                                \
+    (e)) 
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VER(1,1,0,0,5) && \
+  !defined(LIBRESSL_VERSION_NUMBER)
+/* OpenSSL as of 1.1.0pre4 has an "new" thread API, which doesn't require
+ * seting up various callbacks.
+ *
+ * OpenSSL 1.1.0pre4 has a messed up `ERR_remove_thread_state()` prototype,
+ * while the previous one was restored in pre5, and the function made a no-op
+ * (along with a deprecated annotation, which produces a compiler warning).
+ *
+ * While it is possible to support all three versions of the thread API,
+ * a version that existed only for one snapshot pre-release is kind of
+ * pointless, so let's not.
+ */
+#define NEW_THREAD_API
+#endif
 
-#ifdef TOR_IS_MULTITHREADED
+
+#ifndef NEW_THREAD_API
 /** A number of prealloced mutexes for use by openssl. */
 static tor_mutex_t **_openssl_mutexes = NULL;
 /** How many mutexes have we allocated for use by openssl? */
 static int _n_openssl_mutexes = 0;
 #endif
-
-/** A public key, or a public/private keypair. */
-struct crypto_pk_env_t
-{
-  int refs; /* reference counting so we don't have to copy keys */
-  RSA *key;
-};
 
 /** Key and stream information for a stream cipher. */
 struct crypto_cipher_env_t
@@ -100,7 +111,7 @@ struct crypto_dh_env_t {
 };
 
 static int setup_openssl_threading(void);
-static int tor_check_dh_key(int severity, BIGNUM *bn);
+static int tor_check_dh_key(int severity, const BIGNUM *bn);
 
 /** Return the number of bytes added by padding method <b>padding</b>.
  */
@@ -210,7 +221,9 @@ crypto_global_init(int useAccel)
 void
 crypto_thread_cleanup(void)
 {
+#ifndef NEW_THREAD_API
   ERR_remove_state(0);
+#endif
 }
 
 /** Uninitialize the crypto library. Return 0 on success, -1 on failure.
@@ -219,12 +232,14 @@ int
 crypto_global_cleanup(void)
 {
   EVP_cleanup();
+#ifndef NEW_THREAD_API
   ERR_remove_state(0);
+#endif
   ERR_free_strings();
   ENGINE_cleanup();
   CONF_modules_unload(1);
   CRYPTO_cleanup_all_ex_data();
-#ifdef TOR_IS_MULTITHREADED
+#ifndef NEW_THREAD_API
   if (_n_openssl_mutexes) {
     int n = _n_openssl_mutexes;
     tor_mutex_t **ms = _openssl_mutexes;
@@ -272,6 +287,26 @@ EVP_PKEY *_crypto_pk_env_get_evp_pkey(crypto_pk_env_t *env, int private)
 		RSA_free(key);
 		if(pkey)	EVP_PKEY_free(pkey);
 	}
+	return NULL;
+}
+
+/** used by tortls.c: get an equivalent EVP_PKEY* for a crypto_pk_env_t.  Iff
+ * private is set, include the private-key portion of the key. Return a valid
+ * pointer on success, and NULL on failure. */
+EVP_PKEY *crypto_pk_get_evp_pkey_(crypto_pk_env_t *env, int private)
+{
+	RSA *key = NULL;
+	EVP_PKEY *pkey = NULL;
+	tor_assert(env->key);
+	if((private && ((key = RSAPrivateKey_dup(env->key)) != 0)) || (!private && ((key = RSAPublicKey_dup(env->key))!=0)))
+	{	if((pkey = EVP_PKEY_new())!=NULL)
+		{	if((EVP_PKEY_assign_RSA(pkey, key))!=0)
+				return pkey;
+			EVP_PKEY_free(pkey);
+		}
+	}
+	if(key)
+		RSA_free(key);
 	return NULL;
 }
 
@@ -363,10 +398,48 @@ crypto_free_cipher_env(crypto_cipher_env_t *env)
 
 /* public key crypto */
 
-/** Generate a new public/private keypair in <b>env</b>.  Return 0 on
- * success, -1 on failure.
+/** Generate a <b>bits</b>-bit new public/private keypair in <b>env</b>.
+ * Return 0 on success, -1 on failure.
  */
 int crypto_pk_generate_key_with_bits(crypto_pk_env_t *env, int bits)
+{
+  tor_assert(env);
+
+  if (env->key) {
+    RSA_free(env->key);
+    env->key = NULL;
+  }
+
+  {
+    BIGNUM *e = BN_new();
+    RSA *r = NULL;
+    if (e && BN_set_word(e, 65537))
+    {
+      r = RSA_new();
+      if (r && RSA_generate_key_ex(r, bits, e, NULL) != -1)
+      {
+        env->key = r;
+        r = NULL;
+      }
+    }
+    if (e)
+      BN_clear_free(e);
+    if (r)
+      RSA_free(r);
+  }
+
+  if (!env->key) {
+    crypto_log_errors(LOG_WARN, "generating RSA key");
+    return -1;
+  }
+
+  return 0;
+}
+
+/** Generate a <b>bits</b>-bit new public/private keypair in <b>env</b>.
+ * Return 0 on success, -1 on failure.
+ */
+int crypto_pk_generate_env_with_bits_(crypto_pk_env_t *env, int bits)
 {	tor_assert(env);
 	 if(env->key)	RSA_free(env->key);
 #if OPENSSL_VERSION_NUMBER < 0x00908000l
@@ -528,7 +601,14 @@ char *crypto_pk_get_private_key_str(crypto_pk_env_t *env)
 	char *cp;
 	long len;
 	char *s = NULL;
-	tor_assert(PRIVATE_KEY_OK(env));
+	tor_assert(env && env->key);
+#ifdef NEW_THREAD_API
+	const BIGNUM *p, *q;
+	RSA_get0_factors(env->key, &p, &q);
+	tor_assert(p != NULL);
+#else
+	tor_assert(env->key->p);
+#endif
 
 	if(!(bio = BIO_new(BIO_s_mem())))	return NULL;
 	if(PEM_write_bio_RSAPrivateKey(bio, env->key, NULL,NULL,0,NULL,NULL) == 0)
@@ -563,15 +643,29 @@ crypto_pk_check_key(crypto_pk_env_t *env)
 int
 crypto_pk_key_is_private(const crypto_pk_env_t *key)
 {
-  tor_assert(key);
-  return PRIVATE_KEY_OK(key);
+	if (!key || !key->key)
+		return 0;
+#ifdef NEW_THREAD_API
+	const BIGNUM *p, *q;
+	RSA_get0_factors(key->key, &p, &q);
+	return p != NULL;
+#else
+	return key && key->key && key->key->p;
+#endif
 }
 
 /** Return true iff <b>env</b> contains a public key whose public exponent equals 65537. */
 int crypto_pk_public_exponent_ok(crypto_pk_env_t *env)
 {	tor_assert(env);
 	tor_assert(env->key);
-	return BN_is_word(env->key->e, 65537);
+	const BIGNUM *e;
+#ifdef NEW_THREAD_API
+	const BIGNUM *n, *d;
+	RSA_get0_key(env->key, &n, &e, &d);
+#else
+	e = env->key->e;
+#endif
+	return BN_is_word(e, 65537);
 }
 
 /** Compare the public-key components of a and b.  Return -1 if a\<b, 0
@@ -581,6 +675,8 @@ int
 crypto_pk_cmp_keys(crypto_pk_env_t *a, crypto_pk_env_t *b)
 {
   int result;
+  const BIGNUM *a_n, *a_e;
+  const BIGNUM *b_n, *b_e;
 
   if (!a || !b)
     return -1;
@@ -588,12 +684,23 @@ crypto_pk_cmp_keys(crypto_pk_env_t *a, crypto_pk_env_t *b)
   if (!a->key || !b->key)
     return -1;
 
-  tor_assert(PUBLIC_KEY_OK(a));
-  tor_assert(PUBLIC_KEY_OK(b));
-  result = BN_cmp((a->key)->n, (b->key)->n);
+#ifdef NEW_THREAD_API
+  const BIGNUM *a_d, *b_d;
+  RSA_get0_key(a->key, &a_n, &a_e, &a_d);
+  RSA_get0_key(b->key, &b_n, &b_e, &b_d);
+#else
+  a_n = a->key->n;
+  a_e = a->key->e;
+  b_n = b->key->n;
+  b_e = b->key->e;
+#endif
+
+  tor_assert(a_n != NULL && a_e != NULL);
+  tor_assert(b_n != NULL && b_e != NULL);
+  result = BN_cmp(a_n, b_n);
   if (result)
     return result;
-  return BN_cmp((a->key)->e, (b->key)->e);
+  return BN_cmp(a_e, b_e);
 }
 
 /** Return the size of the public key modulus in <b>env</b>, in bytes. */
@@ -612,15 +719,25 @@ crypto_pk_num_bits(crypto_pk_env_t *env)
 {
   tor_assert(env);
   tor_assert(env->key);
-  tor_assert(env->key->n);
 
+#ifdef NEW_THREAD_API
+  /* It's so stupid that there's no other way to check that n is valid
+   * before calling RSA_bits().
+   */
+  const BIGNUM *n, *e, *d;
+  RSA_get0_key(env->key, &n, &e, &d);
+  tor_assert(n != NULL);
+
+  return RSA_bits(env->key);
+#else
+  tor_assert(env->key->n);
   return BN_num_bits(env->key->n);
+#endif
 }
 
 /** Increase the reference count of <b>env</b>, and return it.
  */
-crypto_pk_env_t *
-crypto_pk_dup_key(crypto_pk_env_t *env)
+crypto_pk_env_t *crypto_pk_dup_key(crypto_pk_env_t *env)
 {
   tor_assert(env);
   tor_assert(env->key);
@@ -636,7 +753,13 @@ crypto_pk_env_t *crypto_pk_copy_full(crypto_pk_env_t *env)
 	tor_assert(env);
 	tor_assert(env->key);
 
-	if(PRIVATE_KEY_OK(env))
+#ifdef NEW_THREAD_API
+	const BIGNUM *p, *q;
+	RSA_get0_factors(env->key, &p, &q);
+	if(p != NULL)
+#else
+	if(env->key->p != NULL)
+#endif
 	{	new_key = RSAPrivateKey_dup(env->key);
 		privatekey = 1;
 	}
@@ -693,7 +816,13 @@ crypto_pk_private_decrypt(crypto_pk_env_t *env, char *to,size_t tolen,
   tor_assert(env->key);
   tor_assert(fromlen<INT_MAX);
   tor_assert(tolen >= crypto_pk_keysize(env));
+#ifdef NEW_THREAD_API
+  const BIGNUM *p, *q;
+  RSA_get0_factors(env->key, &p, &q);
+  if(p == NULL)
+#else
   if (!env->key->p)
+#endif
     /* Not a private key */
     return -1;
 
@@ -791,7 +920,13 @@ crypto_pk_private_sign(crypto_pk_env_t *env, char *to, size_t tolen,
   tor_assert(to);
   tor_assert(fromlen < INT_MAX);
   tor_assert(tolen >= crypto_pk_keysize(env));
+#ifdef NEW_THREAD_API
+  const BIGNUM *p, *q;
+  RSA_get0_factors(env->key, &p, &q);
+  if(p == NULL);
+#else
   if (!env->key->p)
+#endif
     /* Not a private key */
     return -1;
 
@@ -1583,12 +1718,33 @@ crypto_dh_env_t *crypto_dh_new(int dh_type)
 	tor_assert(dh_type == DH_TYPE_CIRCUIT || dh_type == DH_TYPE_TLS || dh_type == DH_TYPE_REND);
 	if(!dh_param_p)	init_dh_param();
 	if((res->dh = DH_new()))
-	{	if(((dh_type == DH_TYPE_TLS) && ((res->dh->p = BN_dup(dh_param_p_tls)))) || ((dh_type != DH_TYPE_TLS) && ((res->dh->p = BN_dup(dh_param_p)))))
+	{
+#ifdef NEW_THREAD_API
+		BIGNUM *dh_p = NULL, *dh_g = NULL;
+		if(dh_type == DH_TYPE_TLS)
+			dh_p = BN_dup(dh_param_p_tls);
+		else	dh_p = BN_dup(dh_param_p);
+		if(dh_p)
+		{	dh_g = BN_dup(dh_param_g);
+			if(!dh_g)
+				BN_free(dh_p);
+			else
+			{
+				if(DH_set0_pqg(res->dh, dh_p, NULL, dh_g) && DH_set_length(res->dh, DH_PRIVATE_KEY_BITS))
+				{
+					return res;
+				}
+			}
+		}
+#else
+		if(((dh_type == DH_TYPE_TLS) && ((res->dh->p = BN_dup(dh_param_p_tls)))) || ((dh_type != DH_TYPE_TLS) && ((res->dh->p = BN_dup(dh_param_p)))))
 		{	if((res->dh->g = BN_dup(dh_param_g)))
-			{	res->dh->length = DH_PRIVATE_KEY_BITS;
+			{
+				res->dh->length = DH_PRIVATE_KEY_BITS;
 				return res;
 			}
 		}
+#endif
 		DH_free(res->dh); /* frees p and g too */
 	}
 	crypto_log_errors(LOG_WARN,get_lang_str(LANG_LOG_CRYPTO_CREATING_DH_OBJECT));
@@ -1616,6 +1772,15 @@ int crypto_dh_generate_public(crypto_dh_env_t *dh)
 		{	crypto_log_errors(LOG_WARN,get_lang_str(LANG_LOG_CRYPTO_GENERATING_DH_KEY));
 			return -1;
 		}
+#ifdef NEW_THREAD_API
+		const BIGNUM *pub_key, *priv_key;
+		DH_get0_key(dh->dh, &pub_key, &priv_key);
+		if(tor_check_dh_key(LOG_WARN,pub_key)<0)
+		{	log_warn(LD_CRYPTO,get_lang_str(LANG_LOG_CRYPTO_INVALID_DH_KEY));
+			return -1;
+		}
+		break;
+#else
 		if(tor_check_dh_key(LOG_WARN,dh->dh->pub_key)<0)
 		{	log_warn(LD_CRYPTO,get_lang_str(LANG_LOG_CRYPTO_INVALID_DH_KEY));
 			/* Free and clear the keys, so openssl will actually try again. */
@@ -1624,6 +1789,7 @@ int crypto_dh_generate_public(crypto_dh_env_t *dh)
 			dh->dh->pub_key = dh->dh->priv_key = NULL;
 		}
 		else	break;
+#endif
 	}
 	return 0;
 }
@@ -1636,14 +1802,25 @@ int
 crypto_dh_get_public(crypto_dh_env_t *dh, char *pubkey, size_t pubkey_len)
 {
   int bytes;
+  const BIGNUM *dh_pub;
   tor_assert(dh);
-  if (!dh->dh->pub_key) {
+#ifdef NEW_THREAD_API
+  const BIGNUM *dh_priv;
+  DH_get0_key(dh->dh, &dh_pub, &dh_priv);
+#else
+  dh_pub = dh->dh->pub_key;
+#endif
+  if (!dh_pub) {
     if (crypto_dh_generate_public(dh)<0)
       return -1;
   }
-
-  tor_assert(dh->dh->pub_key);
-  bytes = BN_num_bytes(dh->dh->pub_key);
+#ifdef NEW_THREAD_API
+  DH_get0_key(dh->dh, &dh_pub, &dh_priv);
+#else
+  dh_pub = dh->dh->pub_key;
+#endif
+  tor_assert(dh_pub);
+  bytes = BN_num_bytes(dh_pub);
   tor_assert(bytes >= 0);
   if (pubkey_len < (size_t)bytes) {
     log_warn(LD_CRYPTO,get_lang_str(LANG_LOG_CRYPTO_INVALID_DH_KEY_2),(int) pubkey_len,bytes);
@@ -1651,7 +1828,7 @@ crypto_dh_get_public(crypto_dh_env_t *dh, char *pubkey, size_t pubkey_len)
   }
 
   memset(pubkey, 0, pubkey_len);
-  BN_bn2bin(dh->dh->pub_key, (unsigned char*)(pubkey+(pubkey_len-bytes)));
+  BN_bn2bin(dh_pub, (unsigned char*)(pubkey+(pubkey_len-bytes)));
 
   return 0;
 }
@@ -1660,7 +1837,7 @@ crypto_dh_get_public(crypto_dh_env_t *dh, char *pubkey, size_t pubkey_len)
  * okay (in the subgroup [2,p-2]), or -1 if it's bad.
  * See http://www.cl.cam.ac.uk/ftp/users/rja14/psandqs.ps.gz for some tips.
  */
-static int tor_check_dh_key(int severity,BIGNUM *bn)
+static int tor_check_dh_key(int severity,const BIGNUM *bn)
 {	BIGNUM *x;
 	char *s;
 	tor_assert(bn);
@@ -2010,39 +2187,251 @@ smartlist_shuffle(smartlist_t *sl)
   }
 }
 
-/** Base-64 encode <b>srclen</b> bytes of data from <b>src</b>.  Write
- * the result into <b>dest</b>, if it will fit within <b>destlen</b>
- * bytes.  Return the number of bytes written on success; -1 if
- * destlen is too short, or other failure.
- */
+/* The square root of SIZE_MAX + 1.  If a is less than this, and b is less
+ * than this, then a*b is less than SIZE_MAX.  (For example, if size_t is
+ * 32 bits, then SIZE_MAX is 0xffffffff and this value is 0x10000.  If a and
+ * b are less than this, then their product is at most (65535*65535) ==
+ * 0xfffe0001. */
+#define SQRT_SIZE_MAX_P1 (((size_t)1) << (sizeof(size_t)*4))
+
+/** Return non-zero if and only if the product of the arguments is exact,
+ * and cannot overflow. */
 int
-base64_encode(char *dest, size_t destlen, const char *src, size_t srclen)
+size_mul_check(const size_t x, const size_t y)
 {
-  /* FFFF we might want to rewrite this along the lines of base64_decode, if
-   * it ever shows up in the profile. */
-  EVP_ENCODE_CTX ctx;
-  int len, ret;
+  /* This first check is equivalent to
+     (x < SQRT_SIZE_MAX_P1 && y < SQRT_SIZE_MAX_P1)
+
+     Rationale: if either one of x or y is >= SQRT_SIZE_MAX_P1, then it
+     will have some bit set in its most significant half.
+   */
+  return ((x|y) < SQRT_SIZE_MAX_P1 ||
+          y == 0 ||
+          x <= SIZE_MAX / y);
+} 
+
+#define BASE64_OPENSSL_LINELEN 64
+
+/** Return the Base64 encoded size of <b>srclen</b> bytes of data in
+ * bytes.
+ *
+ * If <b>flags</b>&amp;BASE64_ENCODE_MULTILINE is true, return the size
+ * of the encoded output as multiline output (64 character, `\n' terminated
+ * lines).
+ */
+size_t
+base64_encode_size(size_t srclen, int flags)
+{
+  size_t enclen;
   tor_assert(srclen < INT_MAX);
 
-  /* 48 bytes of input -> 64 bytes of output plus newline.
-     Plus one more byte, in case I'm wrong.
-  */
-  if (destlen < ((srclen/48)+1)*66)
+  if (srclen == 0)
+    return 0;
+
+  enclen = ((srclen - 1) / 3) * 4 + 4;
+  if (flags & BASE64_ENCODE_MULTILINE) {
+    size_t remainder = enclen % BASE64_OPENSSL_LINELEN;
+    enclen += enclen / BASE64_OPENSSL_LINELEN;
+    if (remainder)
+      enclen++;
+  }
+  tor_assert(enclen < INT_MAX && enclen > srclen);
+  return enclen;
+}
+
+/** Internal table mapping 6 bit values to the Base64 alphabet. */
+static const char base64_encode_table[64] = {
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+  'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+  'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+  'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+  'w', 'x', 'y', 'z', '0', '1', '2', '3',
+  '4', '5', '6', '7', '8', '9', '+', '/'
+};
+
+/** Base64 encode <b>srclen</b> bytes of data from <b>src</b>.  Write
+ * the result into <b>dest</b>, if it will fit within <b>destlen</b>
+ * bytes. Return the number of bytes written on success; -1 if
+ * destlen is too short, or other failure.
+ *
+ * If <b>flags</b>&amp;BASE64_ENCODE_MULTILINE is true, return encoded
+ * output in multiline format (64 character, `\n' terminated lines).
+ */
+int
+base64_encode(char *dest, size_t destlen, const char *src, size_t srclen, int flags)
+{
+  const unsigned char *usrc = (unsigned char *)src;
+  const unsigned char *eous = usrc + srclen;
+  char *d = dest;
+  uint32_t n = 0;
+  size_t linelen = 0;
+  size_t enclen;
+  int n_idx = 0;
+
+  if (!src || !dest)
+    return -1;
+
+  /* Ensure that there is sufficient space, including the NUL. */
+  enclen = base64_encode_size(srclen, flags);
+  if (destlen < enclen + 1)
     return -1;
   if (destlen > SIZE_T_CEILING)
     return -1;
+  if (enclen > INT_MAX)
+    return -1;
 
-  EVP_EncodeInit(&ctx);
-  EVP_EncodeUpdate(&ctx, (unsigned char*)dest, &len,
-                   (unsigned char*)src, (int)srclen);
-  EVP_EncodeFinal(&ctx, (unsigned char*)(dest+len), &ret);
-  ret += len;
-  return ret;
+  /* Make sure we leave no uninitialized data in the destination buffer. */
+  memset(dest, 0, destlen);
+
+  /* XXX/Yawning: If this ends up being too slow, this can be sped up
+   * by separating the multiline format case and the normal case, and
+   * processing 48 bytes of input at a time when newlines are desired.
+   */
+#define ENCODE_CHAR(ch) \
+  STMT_BEGIN                                                    \
+    *d++ = ch;                                                  \
+    if (flags & BASE64_ENCODE_MULTILINE) {                      \
+      if (++linelen % BASE64_OPENSSL_LINELEN == 0) {            \
+        linelen = 0;                                            \
+        *d++ = '\n';                                            \
+      }                                                         \
+    }                                                           \
+  STMT_END
+
+#define ENCODE_N(idx) \
+  ENCODE_CHAR(base64_encode_table[(n >> ((3 - idx) * 6)) & 0x3f])
+
+#define ENCODE_PAD() ENCODE_CHAR('=')
+
+  /* Iterate over all the bytes in src.  Each one will add 8 bits to the
+   * value we're encoding.  Accumulate bits in <b>n</b>, and whenever we
+   * have 24 bits, batch them into 4 bytes and flush those bytes to dest.
+   */
+  for ( ; usrc < eous; ++usrc) {
+    n = (n << 8) | *usrc;
+    if ((++n_idx) == 3) {
+      ENCODE_N(0);
+      ENCODE_N(1);
+      ENCODE_N(2);
+      ENCODE_N(3);
+      n_idx = 0;
+      n = 0;
+    }
+  }
+  switch (n_idx) {
+  case 0:
+    /* 0 leftover bits, no pading to add. */
+    break;
+  case 1:
+    /* 8 leftover bits, pad to 12 bits, write the 2 6-bit values followed
+     * by 2 padding characters.
+     */
+    n <<= 4;
+    ENCODE_N(2);
+    ENCODE_N(3);
+    ENCODE_PAD();
+    ENCODE_PAD();
+    break;
+  case 2:
+    /* 16 leftover bits, pad to 18 bits, write the 3 6-bit values followed
+     * by 1 padding character.
+     */
+    n <<= 2;
+    ENCODE_N(1);
+    ENCODE_N(2);
+    ENCODE_N(3);
+    ENCODE_PAD();
+    break;
+  default:
+    /* Something went catastrophically wrong. */
+    tor_fragile_assert(); // LCOV_EXCL_LINE
+    return -1;
+  }
+
+#undef ENCODE_N
+#undef ENCODE_PAD
+#undef ENCODE_CHAR
+
+  /* Multiline output always includes at least one newline. */
+  if (flags & BASE64_ENCODE_MULTILINE && linelen != 0)
+    *d++ = '\n';
+
+  tor_assert(d - dest == (ptrdiff_t)enclen);
+
+  *d++ = '\0'; /* NUL terminate the output. */
+
+  return (int) enclen;
 }
 
+/** As base64_encode, but do not add any internal spaces or external padding
+ * to the output stream. */
+int
+base64_encode_nopad(char *dest, size_t destlen,
+                    const uint8_t *src, size_t srclen)
+{
+  int n = base64_encode(dest, destlen, (const char*) src, srclen, 0);
+  if (n <= 0)
+    return n;
+  tor_assert((size_t)n < destlen && dest[n] == 0);
+  char *in, *out;
+  in = out = dest;
+  while (*in) {
+    if (*in == '=' || *in == '\n') {
+      ++in;
+    } else {
+      *out++ = *in++;
+    }
+  }
+  *out = 0;
+
+  tor_assert(out - dest <= INT_MAX);
+
+  return (int)(out - dest);
+}
+
+/** As base64_decode, but do not require any padding on the input */
+int
+base64_decode_nopad(uint8_t *dest, size_t destlen,
+                    const char *src, size_t srclen)
+{
+  if (srclen > SIZE_T_CEILING - 4)
+    return -1;
+  char *buf = tor_malloc(srclen + 4);
+  memcpy(buf, src, srclen+1);
+  size_t buflen;
+  switch (srclen % 4)
+    {
+    case 0:
+    default:
+      buflen = srclen;
+      break;
+    case 1:
+      tor_free(buf);
+      return -1;
+    case 2:
+      memcpy(buf+srclen, "==", 3);
+      buflen = srclen + 2;
+      break;
+    case 3:
+      memcpy(buf+srclen, "=", 2);
+      buflen = srclen + 1;
+      break;
+  }
+  int n = base64_decode((char*)dest, destlen, buf, buflen);
+  tor_free(buf);
+  return n;
+}
+
+#undef BASE64_OPENSSL_LINELEN
+
+/** @{ */
+/** Special values used for the base64_decode_table */
 #define X 255
 #define SP 64
 #define PAD 65
+/** @} */
 /** Internal table mapping byte values to what they represent in base64.
  * Numbers 0..63 are 6-bit integers.  SPs are spaces, and should be
  * skipped.  Xs are invalid and must not appear in base64. PAD indicates
@@ -2066,7 +2455,7 @@ static const uint8_t base64_decode_table[256] = {
   X, X, X, X, X, X, X, X, X, X, X, X, X, X, X, X,
 };
 
-/** Base-64 decode <b>srclen</b> bytes of data from <b>src</b>.  Write
+/** Base64 decode <b>srclen</b> bytes of data from <b>src</b>.  Write
  * the result into <b>dest</b>, if it will fit within <b>destlen</b>
  * bytes.  Return the number of bytes written on success; -1 if
  * destlen is too short, or other failure.
@@ -2078,72 +2467,82 @@ static const uint8_t base64_decode_table[256] = {
  * padding "=" characters at the end of the string, and does not check
  * for internal padding characters.
  */
-int base64_decode(char *dest, size_t destlen, const char *src, size_t srclen)
+int
+base64_decode(char *dest, size_t destlen, const char *src, size_t srclen)
 {
-#ifdef USE_OPENSSL_BASE64
-	EVP_ENCODE_CTX ctx;
-	int len, ret;
-	/* 64 bytes of input -> *up to* 48 bytes of output. Plus one more byte, in case I'm wrong. */
-	if(destlen < ((srclen/64)+1)*49)	return -1;
-	if(destlen > SIZE_T_CEILING)		return -1;
-	EVP_DecodeInit(&ctx);
-	EVP_DecodeUpdate(&ctx, (unsigned char*)dest, &len,(unsigned char*)src, srclen);
-	EVP_DecodeFinal(&ctx, (unsigned char*)dest, &ret);
-	ret += len;
-	return ret;
-#else
-	const char *eos = src+srclen;
-	uint32_t n=0;
-	int n_idx=0;
-	char *dest_orig = dest;
+  const char *eos = src+srclen;
+  uint32_t n=0;
+  int n_idx=0;
+  char *dest_orig = dest;
 
-	/* Max number of bits == srclen*6. Number of bytes required to hold all bits == (srclen*6)/8. Yes, we want to round down: anything that hangs over the end of a byte is padding. */
-	if(destlen < (srclen*3)/4)	return -1;
-	if(destlen > SIZE_T_CEILING)	return -1;
-	/* Iterate over all the bytes in src.  Each one will add 0 or 6 bits to the value we're decoding.  Accumulate bits in <b>n</b>, and whenever we have 24 bits, batch them into 3 bytes and flush those bytes to dest. */
-	for( ; src < eos; ++src)
-	{	unsigned char c = (unsigned char) *src;
-		uint8_t v = base64_decode_table[c];
-		if(v == PAD)	/* We've hit an = character: the data is over. */
-			break;
-		switch(v)
-		{	case X:		/* This character isn't allowed in base64. */
-				return -1;
-			case SP:	/* This character is whitespace, and has no effect. */
-				continue;
-			default:	/* We have an actual 6-bit value.  Append it to the bits in n. */
-				n = (n<<6) | v;
-				if((++n_idx) == 4)	/* We've accumulated 24 bits in n. Flush them. */
-				{	*dest++ = (n>>16);
-					*dest++ = (n>>8) & 0xff;
-					*dest++ = (n) & 0xff;
-					n_idx = 0;
-					n = 0;
-				}
-		}
-	}
-	/* If we have leftover bits, we need to cope. */
-	switch(n_idx)
-	{	case 0:
-		default:	/* No leftover bits. We win. */
-			break;
-		case 1:		/* 6 leftover bits. That's invalid; we can't form a byte out of that. */
-			return -1;
-		case 2:		/* 12 leftover bits: The last 4 are padding and the first 8 are data. */
-			*dest++ = n >> 4;
-			break;
-		case 3:		/* 18 leftover bits: The last 2 are padding and the first 16 are data. */
-			*dest++ = n >> 10;
-			*dest++ = n >> 2;
-	}
-	tor_assert((dest-dest_orig) <= (ssize_t)destlen);
-	tor_assert((dest-dest_orig) <= INT_MAX);
-	return (int)(dest-dest_orig);
-#endif
+  /* Max number of bits == srclen*6.
+   * Number of bytes required to hold all bits == (srclen*6)/8.
+   * Yes, we want to round down: anything that hangs over the end of a
+   * byte is padding. */
+  if (!size_mul_check(srclen, 3) || destlen < (srclen*3)/4)
+    return -1;
+  if (destlen > SIZE_T_CEILING)
+    return -1;
+
+  /* Make sure we leave no uninitialized data in the destination buffer. */
+  memset(dest, 0, destlen);
+
+  /* Iterate over all the bytes in src.  Each one will add 0 or 6 bits to the
+   * value we're decoding.  Accumulate bits in <b>n</b>, and whenever we have
+   * 24 bits, batch them into 3 bytes and flush those bytes to dest.
+   */
+  for ( ; src < eos; ++src) {
+    unsigned char c = (unsigned char) *src;
+    uint8_t v = base64_decode_table[c];
+    if(v == PAD)
+    	break;
+    switch (v) {
+      case X:
+        /* This character isn't allowed in base64. */
+        return -1;
+      case SP:
+        /* This character is whitespace, and has no effect. */
+        continue;
+      default:
+        /* We have an actual 6-bit value.  Append it to the bits in n. */
+        n = (n<<6) | v;
+        if ((++n_idx) == 4) {
+          /* We've accumulated 24 bits in n. Flush them. */
+          *dest++ = (n>>16);
+          *dest++ = (n>>8) & 0xff;
+          *dest++ = (n) & 0xff;
+          n_idx = 0;
+          n = 0;
+        }
+    }
+  }
+  /* If we have leftover bits, we need to cope. */
+  switch (n_idx) {
+    case 0:
+    default:
+      /* No leftover bits.  We win. */
+      break;
+    case 1:
+      /* 6 leftover bits. That's invalid; we can't form a byte out of that. */
+      return -1;
+    case 2:
+      /* 12 leftover bits: The last 4 are padding and the first 8 are data. */
+      *dest++ = n >> 4;
+      break;
+    case 3:
+      /* 18 leftover bits: The last 2 are padding and the first 16 are data. */
+      *dest++ = n >> 10;
+      *dest++ = n >> 2;
+  }
+
+  tor_assert((dest-dest_orig) <= (ssize_t)destlen);
+  tor_assert((dest-dest_orig) <= INT_MAX);
+
+  return (int)(dest-dest_orig);
 }
 #undef X
 #undef SP
-#undef PAD
+#undef PAD 
 
 /** Base-64 encode DIGEST_LINE bytes from <b>digest</b>, remove the trailing =
  * and newline characters, and store the nul-terminated result in the first
@@ -2152,7 +2551,7 @@ int
 digest_to_base64(char *d64, const char *digest)
 {
   char buf[256];
-  base64_encode(buf, sizeof(buf), digest, DIGEST_LEN);
+  base64_encode(buf, sizeof(buf), digest, DIGEST_LEN,0);
   buf[BASE64_DIGEST_LEN] = '\0';
   memcpy(d64, buf, BASE64_DIGEST_LEN+1);
   return 0;
@@ -2187,7 +2586,7 @@ digest_from_base64(char *digest, const char *d64)
 /** Base-64 encode DIGEST256_LINE bytes from <b>digest</b>, remove the trailing = and newline characters, and store the nul-terminated result in the first BASE64_DIGEST256_LEN+1 bytes of <b>d64</b>.  */
 int digest256_to_base64(char *d64, const char *digest)
 {	char buf[256];
-	base64_encode(buf, sizeof(buf), digest, DIGEST256_LEN);
+	base64_encode(buf, sizeof(buf), digest, DIGEST256_LEN,0);
 	buf[BASE64_DIGEST256_LEN] = '\0';
 	memcpy(d64, buf, BASE64_DIGEST256_LEN+1);
 	return 0;
@@ -2349,7 +2748,7 @@ secret_to_key(char *key_out, size_t key_out_len, const char *secret,
   crypto_free_digest_env(d);
 }
 
-#ifdef TOR_IS_MULTITHREADED
+#ifndef NEW_THREAD_API
 /** Helper: openssl uses this callback to manipulate mutexes. */
 static void
 _openssl_locking_cb(int mode, int n, const char *file, int line)

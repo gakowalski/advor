@@ -479,7 +479,7 @@ void flush_configuration_data(void)
 					i = finfo->filesize+k+8+4;
 					fsize = finfo->filesize + k;
 					char *compressed = NULL;
-					int cbytes = 0;
+					size_t cbytes = 0;
 					if(!tor_gzip_compress(&compressed,&cbytes,finfo->filedata,finfo->filesize,GZIP_METHOD))
 					{	i = i + cbytes - finfo->filesize;
 						fsize = fsize + cbytes - finfo->filesize;

@@ -853,6 +853,7 @@ create_unix_sockaddr(const char *listenaddress, char **readable_address,
   log_fn(LOG_ERR, LD_BUG,get_lang_str(LANG_LOG_CONNECTION_UNIX_SOCKETS_NOT_SUPPORTED));
   *len_out = 0;
   tor_assert(0);
+  return NULL;
 };
 #endif /* HAVE_SYS_UN_H */
 
@@ -1360,8 +1361,8 @@ retry_listeners(int type, config_line_t *cfg,
     free_launch_elts = 0;
   } else if (port_option) {
     line = tor_malloc_zero(sizeof(config_line_t));
-    line->key = tor_strdup("");
-    line->value = tor_strdup(default_addr);
+    line->key = (unsigned char *)tor_strdup("");
+    line->value = (unsigned char *)tor_strdup(default_addr);
     smartlist_add(launch, line);
   }
 
@@ -1386,7 +1387,7 @@ retry_listeners(int type, config_line_t *cfg,
         switch (socket_family) {
           case AF_INET:
             if (!parse_addr_port(LOG_WARN,
-                                 wanted->value, &address, NULL, &port)) {
+                                 (char *)wanted->value, &address, NULL, &port)) {
               int addr_matches = !strcasecmp(address, conn->address);
               int port_matches;
               tor_free(address);
@@ -1411,7 +1412,7 @@ retry_listeners(int type, config_line_t *cfg,
             }
             break;
           case AF_UNIX:
-            if (!strcasecmp(wanted->value, conn->address)) {
+            if (!strcasecmp((char *)wanted->value, conn->address)) {
               line = wanted;
               break;
             }
@@ -1450,13 +1451,13 @@ retry_listeners(int type, config_line_t *cfg,
         switch (socket_family) {
           case AF_INET:
             listensockaddr = (struct sockaddr *)
-                             create_inet_sockaddr(cfg_line->value,
+                             create_inet_sockaddr((char *)cfg_line->value,
                                                   port_option,
                                                   &address, &listensocklen);
             break;
           case AF_UNIX:
             listensockaddr = (struct sockaddr *)
-                             create_unix_sockaddr(cfg_line->value,
+                             create_unix_sockaddr((char *)cfg_line->value,
                                                   &address, &listensocklen);
             break;
           default:
@@ -2641,7 +2642,7 @@ alloc_http_authenticator(const char *authenticator)
   const size_t base64_authenticator_length = (authenticator_length/48+1)*66;
   char *base64_authenticator = tor_malloc(base64_authenticator_length);
   if (base64_encode(base64_authenticator, base64_authenticator_length,
-                    authenticator, authenticator_length) < 0) {
+                    authenticator, authenticator_length,0) < 0) {
     tor_free(base64_authenticator); /* free and set to null */
   } else {
     int i = 0, j = 0;

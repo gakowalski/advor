@@ -522,7 +522,7 @@ connection_printf_to_buf(control_connection_t *conn, const char *format, ...)
     log_warn(LD_BUG,get_lang_str(LANG_LOG_CONTROL_STRING_FORMAT_ERROR));
     return;
   }
-  connection_write_to_buf(buf, (size_t)len, TO_CONN(conn));
+  connection_write_to_buf((char *)buf, (size_t)len, TO_CONN(conn));
   tor_free(buf);
 }
 
@@ -622,7 +622,7 @@ send_control_event_impl(uint16_t event, event_format_t which,
     return;
   }
 
-  send_control_event_string(event, which|ALL_FORMATS, buf);
+  send_control_event_string(event, which|ALL_FORMATS, (char *)buf);
 
   tor_free(buf);
 }
@@ -829,7 +829,7 @@ handle_control_getconf(control_connection_t *conn, uint32_t body_len,
 
       while (answer) {
         config_line_t *next;
-        size_t alen = strlen(answer->key)+strlen(answer->value)+8;
+        size_t alen = strlen((char *)answer->key)+strlen((char *)answer->value)+8;
         char *astr = tor_malloc(alen);
         tor_snprintf(astr, alen, "250-%s=%s\r\n",
                      answer->key, answer->value);
@@ -1008,7 +1008,7 @@ smartlist_t *decode_hashed_passwords(config_line_t *passwords)
 	smartlist_t *sl = smartlist_create();
 	tor_assert(passwords);
 	for(cl = passwords; cl; cl = cl->next)
-	{	const char *hashed = cl->value;
+	{	const char *hashed = (char *)cl->value;
 		if(!strcmpstart(hashed, "16:") && (base16_decode(decoded, sizeof(decoded), hashed+3, strlen(hashed+3))<0 || strlen(hashed+3) != (S2K_SPECIFIER_LEN+DIGEST_LEN)*2))
 			break;
 		else if(base64_decode(decoded, sizeof(decoded), hashed, strlen(hashed)) != S2K_SPECIFIER_LEN+DIGEST_LEN)
@@ -1454,7 +1454,7 @@ getinfo_helper_listeners(control_connection_t *control_conn,
       tor_asprintf(&addr, "%s:%d", conn->address, (int)conn->port);
     } else {
       char *tmp = tor_sockaddr_to_str((struct sockaddr *)&ss);
-      addr = esc_for_log(tmp);
+      addr = (unsigned char *)esc_for_log(tmp);
       tor_free(tmp);
     }
     if (addr)

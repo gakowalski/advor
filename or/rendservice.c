@@ -340,7 +340,7 @@ rend_config_services(or_options_t *options, int validate_only)
   }
 
   for (line = options->RendConfigLines; line; line = line->next) {
-    if (!strcasecmp(line->key, "HiddenServiceKey")) {
+    if (!strcasecmp((char *)line->key, "HiddenServiceKey")) {
       if (service) {
         if (validate_only)
           rend_service_free(service);
@@ -348,7 +348,7 @@ rend_config_services(or_options_t *options, int validate_only)
           rend_add_service(service);
       }
       service = tor_malloc_zero(sizeof(rend_service_t));
-      service->directory = tor_strdup(line->value);
+      service->directory = tor_strdup((char *)line->value);
       service->ports = smartlist_create();
       service->intro_period_started = get_time(NULL);
       continue;
@@ -359,10 +359,10 @@ rend_config_services(or_options_t *options, int validate_only)
       return -1;
     }
     is_dll=0;
-    if (!strcasecmp(line->key, "HiddenServicePort")) {
+    if (!strcasecmp((char *)line->key, "HiddenServicePort")) {
       smartlist_t *sl = smartlist_create();
       char *servdll;
-      smartlist_split_string(sl,line->value," ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK,0);
+      smartlist_split_string(sl,(char *)line->value," ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK,0);
       if(smartlist_len(sl)==2){
       	servdll=smartlist_get(sl,1);
         if(!strcasecmpend(servdll,".dll:0"))
@@ -376,13 +376,13 @@ rend_config_services(or_options_t *options, int validate_only)
       }
       SMARTLIST_FOREACH(sl, char *, c, tor_free(c));
       smartlist_free(sl);
-      portcfg = parse_port_config(line->value,is_dll);
+      portcfg = parse_port_config((char *)line->value,is_dll);
       if (!portcfg) {
         rend_service_free(service);
         return -1;
       }
       smartlist_add(service->ports, portcfg);
-    } else if (!strcasecmp(line->key, "HiddenServiceAuthorizeClient")) {
+    } else if (!strcasecmp((char *)line->key, "HiddenServiceAuthorizeClient")) {
       /* Parse auth type and comma-separated list of client names and add a
        * rend_authorized_client_t for each client to the service's list
        * of authorized clients. */
@@ -395,7 +395,7 @@ rend_config_services(or_options_t *options, int validate_only)
         return -1;
       }
       type_names_split = smartlist_create();
-      smartlist_split_string(type_names_split, line->value, " ", 0, 2);
+      smartlist_split_string(type_names_split, (char *)line->value, " ", 0, 2);
       if (smartlist_len(type_names_split) < 1) {
         log_warn(LD_BUG,get_lang_str(LANG_LOG_RENDSERVICE_HSAUTHCLIENT_WITHOUT_VALUE));
         smartlist_free(type_names_split);
@@ -470,8 +470,8 @@ rend_config_services(or_options_t *options, int validate_only)
         return -1;
       }
     } else {
-      tor_assert(!strcasecmp(line->key, "HiddenServiceVersion"));
-      if (strcmp(line->value, "2")) {
+      tor_assert(!strcasecmp((char *)line->key, "HiddenServiceVersion"));
+      if (strcmp((char *)line->value, "2")) {
         log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDSERVICE_ONLY_V2));
         rend_service_free(service);
         return -1;
@@ -662,7 +662,7 @@ int rend_service_load_keys(void)
 					/* Copy descriptor cookie from parsed entry or create new one. */
 					if(parsed)	memcpy(client->descriptor_cookie, parsed->descriptor_cookie,REND_DESC_COOKIE_LEN);
 					else		crypto_rand(client->descriptor_cookie, REND_DESC_COOKIE_LEN);
-					if(base64_encode(desc_cook_out, 3*REND_DESC_COOKIE_LEN_BASE64+1,client->descriptor_cookie,REND_DESC_COOKIE_LEN) < 0)
+					if(base64_encode(desc_cook_out, 3*REND_DESC_COOKIE_LEN_BASE64+1,client->descriptor_cookie,REND_DESC_COOKIE_LEN,0) < 0)
 					{	log_warn(LD_BUG,get_lang_str(LANG_LOG_RENDSERVICE_ERROR_ENCODING_DESCRIPTOR_COOKIE));
 						strmap_free(parsed_clients, rend_authorized_client_strmap_item_free);
 						r = -1;break;
@@ -724,7 +724,7 @@ int rend_service_load_keys(void)
 					{	char extended_desc_cookie[REND_DESC_COOKIE_LEN+1];
 						memcpy(extended_desc_cookie, client->descriptor_cookie,REND_DESC_COOKIE_LEN);
 						extended_desc_cookie[REND_DESC_COOKIE_LEN] = ((int)s->auth_type - 1) << 4;
-						if(base64_encode(desc_cook_out, 3*REND_DESC_COOKIE_LEN_BASE64+1,extended_desc_cookie,REND_DESC_COOKIE_LEN+1) < 0)
+						if(base64_encode(desc_cook_out, 3*REND_DESC_COOKIE_LEN_BASE64+1,extended_desc_cookie,REND_DESC_COOKIE_LEN+1,0) < 0)
 						{	log_warn(LD_BUG,get_lang_str(LANG_LOG_RENDSERVICE_ERROR_ENCODING_DESCRIPTOR_COOKIE));
 							r = -1;break;
 						}
@@ -809,7 +809,7 @@ rend_check_authorization(rend_service_t *service,
   if (!auth_client) {
     char descriptor_cookie_base64[3*REND_DESC_COOKIE_LEN_BASE64];
     base64_encode(descriptor_cookie_base64, sizeof(descriptor_cookie_base64),
-                  descriptor_cookie, REND_DESC_COOKIE_LEN);
+                  descriptor_cookie, REND_DESC_COOKIE_LEN,0);
     log_info(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_NO_AUTH_2),descriptor_cookie_base64);
     return 0;
   }
@@ -953,7 +953,7 @@ int rend_service_introduce(origin_circuit_t *circuit, const uint8_t *request,siz
 		/* Check timestamp. */
 		ts = ntohl(get_uint32(buf+1+v3_shift));
 		v3_shift += 4;
-		if(((now - ts) < -1 * REND_REPLAY_TIME_INTERVAL / 2 || (now - ts) > REND_REPLAY_TIME_INTERVAL / 2)&&!get_options()->DirFlags&DIR_FLAG_FAKE_LOCAL_TIME)
+		if(((now - ts) < -1 * REND_REPLAY_TIME_INTERVAL / 2 || (now - ts) > REND_REPLAY_TIME_INTERVAL / 2)&&((get_options()->DirFlags&DIR_FLAG_FAKE_LOCAL_TIME)==0))
 		{	log_warn(LD_REND,get_lang_str(LANG_LOG_RENDSERVICE_INTRODUCE2_TIME),(now - ts) < 0 ? get_lang_str(LANG_LOG_RENDSERVICE__OLD) : get_lang_str(LANG_LOG_RENDSERVICE__NEW));
 			return -1;
 		}
@@ -1981,8 +1981,8 @@ long rend_add_new_service(char *realPorts,char *virtualPorts,char *hostname,char
 	}
 	for(line = options->RendConfigLines; line&&line->next; line = line->next)	;
 	newLine=tor_malloc_zero(sizeof(config_line_t));
-	newLine->key=tor_strdup("HiddenServiceKey");
-	newLine->value=tor_strdup(service->directory);
+	newLine->key=(unsigned char *)tor_strdup("HiddenServiceKey");
+	newLine->value=(unsigned char *)tor_strdup(service->directory);
 	if(line)	line->next=newLine;
 	else	options->RendConfigLines=newLine;
 	line=newLine;
@@ -1990,8 +1990,8 @@ long rend_add_new_service(char *realPorts,char *virtualPorts,char *hostname,char
 	SMARTLIST_FOREACH(service->ports, rend_service_port_config_t *, cPort,
 	{	newLine=tor_malloc_zero(sizeof(config_line_t));
 		tor_snprintf(newVal,100,"%i %s:%i",cPort->virtual_port,hostname,cPort->real_port);
-		newLine->key=tor_strdup("HiddenServicePort");
-		newLine->value=tor_strdup(newVal);
+		newLine->key=(unsigned char *)tor_strdup("HiddenServicePort");
+		newLine->value=(unsigned char *)tor_strdup(newVal);
 		line->next=newLine;line=newLine;
 	});
 	tor_free(newVal);
@@ -2118,12 +2118,12 @@ BOOL delete_service(unsigned long key)
 	tor_snprintf(dirStr,20,"%lu",key);
 	or_options_t *options=get_options();
 	for(line = options->RendConfigLines; line&&line->next; line = line->next)
-	{	if(!strcasecmp(line->key,"HiddenServiceKey") && !strcasecmp(line->value,dirStr))
+	{	if(!strcasecmp((char *)line->key,"HiddenServiceKey") && !strcasecmp((char *)line->value,dirStr))
 		{	while(line)
 			{	oldLine=line->next;
 				options->RendConfigLines=line->next;
 				tor_free(line->key);tor_free(line->value);tor_free(line);
-				if(!oldLine||!strcasecmp(oldLine->key,"HiddenServiceKey")) break;
+				if(!oldLine||!strcasecmp((char *)oldLine->key,"HiddenServiceKey")) break;
 				line=oldLine;
 			}
 			remove_service(key);

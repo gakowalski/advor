@@ -1,132 +1,153 @@
-## Instructions for building "AdvOR.dll" with Masm32, http://www.masm32.com ##
+To build AdvOR.dll install masm32 from http://www.masm32.com then execute DLL\a.bat
+
+
+## Instructions for building AdvOR with MinGW (http://www.mingw.org/)
+##
+
+Stage One:  Download and Install MinGW.
+---------------------------------------
+
+Download mingw:
+http://prdownloads.sf.net/mingw/MinGW-5.1.4.exe?download
+
+Download msys:
+http://prdownloads.sf.net/mingw/MSYS-1.0.10.exe?download
+
+Download the mingw developer tool kit:
+http://prdownloads.sf.net/mingw/msysDTK-1.0.1.exe?download
+
+Download the mingw autoconf-2.61 update:
+https://sourceforge.net/projects/mingw/files/OldFiles/msys-autoconf/autoconf-2.61-MSYS-1.0.11-1.tar.bz2/download
+
+Install mingw, msys and mingw-dtk.  Extract autoconf-2.61-MSYS-1.0.11-1.tar.bz2 into
+your mingw install location.  For example, if you installed mingw into
+/c/mingw/1.0/ you want to extract msys-autoconf-2.61 into this
+directory.
+
+Create a directory called "AdvOR".
+
+Download masm32 from http://masm32.com/masmdl.htm
+
+Install masm32.
 
 
 
-Download and install Masm32 from http://www.masm32.com/download.htm
-Type "cd AdvOR"
-# Not working because blddll.bat is missing
-Type "DLL\a.bat"
 
+Stage Two:  Download, extract, compile zlib
+---------------------------------------------
 
+Download zlib source:
+http://zlib.net/zlib-1.2.11.tar.gz
 
-## Instructions for building "AdvOR.exe" with MinGW, http://www.mingw.org ##
-
-
-
-Stage 1: Download and install MinGW
------------------------------------
-
-Download MinGW: http://downloads.sf.net/mingw/MinGW-5.1.4.exe
-Download MSYS: http://downloads.sf.net/mingw/MSYS-1.0.10.exe
-Download MinGW DTK: http://downloads.sf.net/mingw/msysDTK-1.0.1.exe
-Download MinGW autoconf update: http://downloads.sf.net/mingw/msys-autoconf-2.59.tar.bz2
-Download Masm32 from http://www.masm32.com/download.htm
-
-Install MinGW, MSYS and MinGW-dtk
-Extract "msys-autoconf-2.59.tar.bz2" into your MinGW install location
-Install Masm32
-Add "C:\mingw\bin" and "C:\masm32\bin" to "PATH" environment variable
-Create directory "AdvOR"
-
-
-
-Stage 2: Download, extract and compile zlib
--------------------------------------------
-
-Download zlib source: http://zlib.net/zlib-1.2.11.tar.gz
-
-Copy "zlib-1.2.11.tar.gz" into "AdvOR" directory
-Type "cd AdvOR"
+Extract zlib:
+Copy the zlib tarball into the "AdvOR" directory
+Type "cd AdvOR/"
 Type "tar zxf zlib-1.2.11.tar.gz"
-Type "cd zlib-1.2.11"
+
+CHOICE:
+
+Make zlib.a:
+Type "cd zlib-1.2.11/"
+Type "./configure"
 Type "make -f win32/Makefile.gcc"
-Type "make -f win32/Makefile.gcc install INCLUDE_PATH=/usr/local/include LIBRARY_PATH=/usr/local/lib BINARY_PATH=/usr/local/bin"
-Type "cp libz.a /usr/local/lib/libz.a"
-Type "cp libz.a /usr/local/lib/libzlib.a"
-Type "cp -iv zlib1.dll c:/mingw/bin"
-Type "cp -iv zconf.h zlib.h c:/mingw/include"
-Type "cp -iv libz.a c:/mingw/lib/libzlib.a"
+Assuming you have MingGW installed in c:/ :
+Type cp -iv zlib1.dll c:/mingw/bin
+Type cp -iv zconf.h zlib.h c:/mingw/include
+Type cp -iv libz.a c:/mingw/lib/libzlib.a
+
+Done.
 
 
 
-Stage 3: Download, extract and compile openssl
+Stage Three:  Download, extract, compile openssl
 ----------------------------------------------
 
-Download openssl source: http://www.openssl.org/source/openssl-1.0.2k.tar.gz
+Download openssl:
+https://www.openssl.org/source/openssl-1.1.0e.tar.gz
 
-Edit "mingw/include/wincrypt.h" and add following lines:
+Extract openssl:
+Copy the openssl tarball into the "AdvOR" directory.
+Type "cd AdvOR/"
+Type "tar zxf openssl-1.1.0e.tar.gz"
 
-typedef struct _PUBKEY {
-	DWORD magic;
-	DWORD bitlen;
-} DSSPUBKEY;
+Edit MinGW/include/wincrypt.h and add the following lines:
+	typedef struct _PUBKEY {
+	DWORD magic ;
+	DWORD bitlen ;
+	} DSSPUBKEY ;
 
-#define CERT_STORE_PROV_SYSTEM_A ((LPCSTR) 9)
-#define CERT_STORE_READONLY_FLAG 0x00008000
+	#define CERT_STORE_PROV_SYSTEM_A ((LPCSTR) 9)
+	#define CERT_STORE_READONLY_FLAG 0x00008000
+	// BOOL WINAPI CryptEnumProvidersA( DWORD, DWORD *, DWORD, DWORD *, LPSTR, DWORD *) ;
 
-BOOL WINAPI CryptEnumProvidersA(DWORD, DWORD *, DWORD, DWORD *, LPSTR, DWORD *);
+If you're using an older version of Perl for MinGW:
+  Download Perl-MinGW from https://sourceforge.net/projects/perl-mingw/
+  Extract bin, lib and share from perl-5.24.0-mingw32.zip/perl-5.24.0/ to the msys/1.0/ directory
 
-Copy "openssl-1.0.2k.tar.gz" into "AdvOR" directory
-Type "cd AdvOR"
-Type "tar zxf openssl-1.0.2k.tar.gz"
-Type "cd openssl-1.0.2k"
-Type "./Configure -no-idea -no-rc5 -no-mdc2 mingw"
-Edit "Makefile" and remove "test:" and "tests:" sections
-Type "rm -rf ./test"
+Make openssl libraries:
+Type "cd openssl-1.1.0e/"
+Type "./Configure no-shared no-afalgeng no-autoalginit no-stdio no-capieng -no-idea -no-rc5 -no-mdc2 mingw"
+Edit Makefile and replace "\" with "/" in the line containing "PERL="
+Edit crypto/init.c and replace
+	"ret = GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,(void *)&base_inited, &handle);"
+	with:
+	"handle = GetModuleHandle((void *)&base_inited);ret = 1;"
+	and
+	"ret = GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,handlersym.sym, &handle);
+	with:
+	"handle = GetModuleHandle(handlersym.sym);ret = 1;"
 Type "make depend"
-# Next steps can take up to 10 minutes to complete
+# The next steps can take up to 30 minutes to complete.
 Type "make"
 Type "make install"
 
 
+Stage Four: Download, extract, and compile libevent-2.1.8
+------------------------------------------------------
 
-Stage 4: Download, extract and compile libevent
------------------------------------------------
+Download the libevent 2.1.8 release:
+https://github.com/libevent/libevent/releases/download/release-2.1.8-stable/libevent-2.1.8-stable.tar.gz
 
-Download libevent source: https://github.com/downloads/libevent/libevent/libevent-2.0.21-stable.tar.gz
-# 2.0.22 is not compiling, evutil.c: undefined reference to _vscprintf
-# https://github.com/libevent/libevent/releases/download/release-2.0.22-stable/libevent-2.0.22-stable.tar.gz
+Copy the libevent tarball into the "AdvOR" directory.
 
-Copy "libevent-2.0.21-stable.tar.gz" into "AdvOR" directory
-Type "cd AdvOR"
-Type "tar zxf libevent-2.0.21-stable.tar.gz"
-Type "cd libevent-2.0.21-stable"
+Extract libevent.
+Copy the libevent tarball into the "AdvOR" directory.
+Type "cd AdvOR/"
+Type "tar zxf libevent-2.1.8-stable.tar.gz"
+
+Type "cd libevent-2.1.8-stable/"
 Type "./configure --enable-static --disable-shared"
-Edit "Makefile" and change "SUBDIRS = . include sample test" to "SUBDIRS = . include"
+Edit Makefile and replace "am__EXEEXT_2 = sample/le-proxy$(EXEEXT) \ sample/https-client$(EXEEXT)" with "am__EXEEXT_2 = "
+Edit Makefile and replace "test/test-weof$(EXEEXT) test/regress$(EXEEXT)" with "test/test-weof$(EXEEXT)"
 Type "make"
 Type "make install"
 
 
+Stage Five: Download, extract, and compile libntlm-1.4
+------------------------------------------------------
 
-Stage 5: Download, extract and compile libntlm
-----------------------------------------------
+Download the libntlm 1.4 release:
+http://www.nongnu.org/libntlm/releases/
 
-Download libntlm source: http://www.nongnu.org/libntlm/releases/libntlm-1.4.tar.gz
-
-Copy "libntlm-1.4.tar.gz" into "AdvOR" directory
+Copy the libevent tarball into the "AdvOR" directory.
 Type "cd AdvOR"
-Type "tar zxf libntlm-1.4.tar.gz"
-Type "cd libntlm-1.4"
+
+Extract libntlm.
+
 Type "./configure --enable-static --disable-shared"
 Type "make"
 Type "make install"
 
 
+Stage Six:  Build AdvOR
+----------------------
 
-Stage 6: Build AdvOR
---------------------
+Download the current AdvOR release from https://sourceforge.net/projects/AdvTor/ .
+Extract AdvOR-src.zip into the "AdvOR" directory.
 
-Download latest AdvOR source from https://te-home.net/?do=work&id=advor (up to date) or https://sourceforge.net/projects/advtor/ (not up to date)
-
-Extract "advor-#.#.#.#src.zip" into "AdvOR" directory
-Type "cd AdvOR"
+cd AdvOR
 Type "./configure --disable-dependency-tracking"
 Type "make"
-You now have "AdvOR.exe" in "or" directory
 
+You now have a AdvOR.exe in src/or/.
 
-
-Stage 7: Make AdvOR.exe smaller
--------------------------------
-
-Type "strip -s or/AdvOR.exe"

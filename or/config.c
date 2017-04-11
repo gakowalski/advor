@@ -795,7 +795,7 @@ static uint64_t config_parse_memunit(const char *s, int *ok);
 static or_options_t *options_dup(config_format_t *fmt, or_options_t *old);
 static int options_validate(or_options_t *old_options, or_options_t *options,
                             int from_setconf, unsigned char **msg);
-static int options_act_reversible(or_options_t *old_options, unsigned char **msg);
+static int options_act_reversible(or_options_t *old_options, char **msg);
 static int options_act(or_options_t *old_options);
 static int options_transition_affects_workers(or_options_t *old_options,
                                               or_options_t *new_options);
@@ -904,7 +904,7 @@ set_options(or_options_t *new_val, unsigned char **msg)
   global_options = new_val;
   /* Note that we pass the *old* options below, for comparison. It
    * pulls the new options directly out of global_options. */
-  if (options_act_reversible(old_options, msg)<0) {
+  if (options_act_reversible(old_options, (char **)msg)<0) {
     tor_assert(*msg);
     global_options = old_options;
     return -1;
@@ -921,7 +921,7 @@ set_options(or_options_t *new_val, unsigned char **msg)
 }
 
 /** The version of this Tor process, as parsed. */
-static char *_version = NULL;
+char *_version = NULL;
 
 
 /** Release additional memory allocated in options
@@ -1046,16 +1046,16 @@ validate_dir_authorities(or_options_t *options, or_options_t *old_options)
   /* Now go through the four ways you can configure an alternate
    * set of directory authorities, and make sure none are broken. */
   for (cl = options->DirServers; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 1)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 1)<0)
       return -1;
   for (cl = options->AlternateBridgeAuthority; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 1)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 1)<0)
       return -1;
   for (cl = options->AlternateDirAuthority; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 1)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 1)<0)
       return -1;
   for (cl = options->AlternateHSAuthority; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 1)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 1)<0)
       return -1;
   return 0;
 }
@@ -1085,16 +1085,16 @@ consider_adding_dir_authorities(or_options_t *options,
   clear_trusted_dir_servers();
 
   for (cl = options->DirServers; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 0)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 0)<0)
       return -1;
   for (cl = options->AlternateBridgeAuthority; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 0)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 0)<0)
       return -1;
   for (cl = options->AlternateDirAuthority; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 0)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 0)<0)
       return -1;
   for (cl = options->AlternateHSAuthority; cl; cl = cl->next)
-    if (parse_dir_server_line(cl->value, NO_AUTHORITY, 0)<0)
+    if (parse_dir_server_line((char *)cl->value, NO_AUTHORITY, 0)<0)
       return -1;
   return 0;
 }
@@ -1132,7 +1132,7 @@ get_effective_bwburst(or_options_t *options)
  *
  * Return 0 if all goes well, return -1 if things went badly.
  */
-static int options_act_reversible(or_options_t *old_options, unsigned char **msg)
+static int options_act_reversible(or_options_t *old_options, char **msg)
 {	smartlist_t *new_listeners = smartlist_create();
 	smartlist_t *replaced_listeners = smartlist_create();
 	static int libevent_initialized = 0;
@@ -1260,7 +1260,7 @@ options_act(or_options_t *old_options)
   if (options->Bridges) {
     mark_bridge_list();
     for (cl = options->Bridges; cl; cl = cl->next) {
-      if (parse_bridge_line(cl->value, 0)<0) {
+      if (parse_bridge_line((char *)cl->value, 0)<0) {
         log_warn(LD_BUG,get_lang_str(LANG_LOG_CONFIG_ERROR_ADDING_BRIDGE));
   //      return -1;
       }
@@ -1688,8 +1688,8 @@ config_get_commandlines(int argc, char **argv, config_line_t **result)
 		*new = tor_malloc_zero(sizeof(config_line_t));
 		s = argv[i];
 		while (*s == '-')	s++;
-		(*new)->key = tor_strdup(expand_abbrev(&options_format, s, 1, 1));
-		(*new)->value = tor_strdup(argv[i+1]);
+		(*new)->key = (unsigned char *)tor_strdup(expand_abbrev(&options_format, s, 1, 1));
+		(*new)->value = (unsigned char *)tor_strdup(argv[i+1]);
 		(*new)->next = NULL;
 		log(LOG_DEBUG, LD_CONFIG,get_lang_str(LANG_LOG_CONFIG_COMMANDLINE_PARSED_KEYWORD),(*new)->key, (*new)->value);
 		new = &((*new)->next);
@@ -1709,8 +1709,8 @@ config_line_append(config_line_t **lst,
   config_line_t *newline;
 
   newline = tor_malloc(sizeof(config_line_t));
-  newline->key = tor_strdup(key);
-  newline->value = tor_strdup(val);
+  newline->key = (unsigned char *)tor_strdup(key);
+  newline->value = (unsigned char *)tor_strdup(val);
   newline->next = NULL;
   while (*lst)
     lst = &((*lst)->next);
@@ -1743,8 +1743,8 @@ config_get_lines(const char *string, config_line_t **result)
        * rather than using config_line_append over and over and getting
        * n^2 performance. */
       *next = tor_malloc(sizeof(config_line_t));
-      (*next)->key = k;
-      (*next)->value = v;
+      (*next)->key = (unsigned char *)k;
+      (*next)->value = (unsigned char *)v;
       (*next)->next = NULL;
       next = &((*next)->next);
     } else {
@@ -1845,7 +1845,7 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
 
   CHECK(fmt, options);
 
-  var = config_find_option(fmt, c->key);
+  var = config_find_option(fmt, (char *)c->key);
   tor_assert(var);
 
   lvalue = STRUCT_VAR_P(options, var->var_offset);
@@ -1853,15 +1853,15 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
   switch (var->type) {
 
   case CONFIG_TYPE_PORT:
-    if (!strcasecmp(c->value, "auto")) {
+    if (!strcasecmp((char *)c->value, "auto")) {
       *(int *)lvalue = CFG_AUTO_PORT;
       break;
     }
     /* fall through */
 
   case CONFIG_TYPE_UINT:
-    if(c->value[0]=='-') i = -(int)tor_parse_long(&c->value[1], 10, 0, INT_MAX, &ok, NULL);
-    else i = (int)tor_parse_long(c->value, 10, 0, var->type==CONFIG_TYPE_PORT ? 65535 : INT_MAX, &ok, NULL);
+    if(c->value[0]=='-') i = -(int)tor_parse_long((char *)&c->value[1], 10, 0, INT_MAX, &ok, NULL);
+    else i = (int)tor_parse_long((char *)c->value, 10, 0, var->type==CONFIG_TYPE_PORT ? 65535 : INT_MAX, &ok, NULL);
     if (!ok) {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_INVALID_INT),c->key, c->value);
       return -1;
@@ -1870,7 +1870,7 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
     break;
 
   case CONFIG_TYPE_INTERVAL: {
-    i = config_parse_interval(c->value, &ok);
+    i = config_parse_interval((char *)c->value, &ok);
     if (!ok) {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_INVALID_INTERVAL),c->key,c->value);
       return -1;
@@ -1880,7 +1880,7 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
   }
 
   case CONFIG_TYPE_MEMUNIT: {
-    uint64_t u64 = config_parse_memunit(c->value, &ok);
+    uint64_t u64 = config_parse_memunit((char *)c->value, &ok);
     if (!ok) {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_INVALID_VALUE),c->key,c->value);
       return -1;
@@ -1890,7 +1890,7 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
   }
 
   case CONFIG_TYPE_BOOL:
-    i = (int)tor_parse_long(c->value, 10, 0, 1, &ok, NULL);
+    i = (int)tor_parse_long((char *)c->value, 10, 0, 1, &ok, NULL);
     if (!ok) {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_INVALID_BOOLEAN),c->key,c->value);
       return -1;
@@ -1901,15 +1901,15 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
   case CONFIG_TYPE_STRING:
   case CONFIG_TYPE_FILENAME:
     tor_free(*(char **)lvalue);
-    *(char **)lvalue = tor_strdup(c->value);
+    *(char **)lvalue = tor_strdup((char *)c->value);
     break;
 
   case CONFIG_TYPE_DOUBLE:
-    *(double *)lvalue = atof(c->value);
+    *(double *)lvalue = atof((char *)c->value);
     break;
 
   case CONFIG_TYPE_ISOTIME:
-    if (parse_iso_time(c->value, (time_t *)lvalue)) {
+    if (parse_iso_time((char *)c->value, (time_t *)lvalue)) {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_INVALID_KEYWORD_TYPE),c->value,c->key);
       return -1;
     }
@@ -1920,7 +1920,7 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
       routerset_free(*(routerset_t**)lvalue);
     }
     *(routerset_t**)lvalue = routerset_new();
-    if (routerset_parse(*(routerset_t**)lvalue, c->value, c->key)<0) {
+    if (routerset_parse(*(routerset_t**)lvalue, (char *)c->value, (char *)c->key)<0) {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_INVALID_EXIT_LIST),c->value,c->key);
       return -1;
     }
@@ -1934,13 +1934,13 @@ config_assign_value(config_format_t *fmt, or_options_t *options,
       *(smartlist_t**)lvalue = smartlist_create();
     }
 
-    smartlist_split_string(*(smartlist_t**)lvalue, c->value, ",",
+    smartlist_split_string(*(smartlist_t**)lvalue, (char *)c->value, ",",
                            SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
     break;
 
   case CONFIG_TYPE_LINELIST:
   case CONFIG_TYPE_LINELIST_S:
-    config_line_append((config_line_t**)lvalue, c->key, c->value);
+    config_line_append((config_line_t**)lvalue, (char *)c->key, (char *)c->value);
     break;
   case CONFIG_TYPE_OBSOLETE:
     log_warn(LD_CONFIG,get_lang_str(LANG_LOG_CONFIG_OBSOLETE_OPTION),c->key);
@@ -1973,12 +1973,12 @@ config_assign_line(config_format_t *fmt, or_options_t *options,
 
   CHECK(fmt, options);
 
-  var = config_find_option(fmt, c->key);
+  var = config_find_option(fmt, (char *)c->key);
   if (!var) {
     if (fmt->extra) {
       void *lvalue = STRUCT_VAR_P(options, fmt->extra->var_offset);
       log_info(LD_CONFIG,get_lang_str(LANG_LOG_CONFIG_UNRECOGNIZED_OPTION),c->key);
-      config_line_append((config_line_t**)lvalue, c->key, c->value);
+      config_line_append((config_line_t**)lvalue, (char *)c->key, (char *)c->value);
       return 0;
     } else {
       tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_UNKNOWN_OPTION),c->key);
@@ -1986,12 +1986,12 @@ config_assign_line(config_format_t *fmt, or_options_t *options,
     }
   }
   /* Put keyword into canonical case. */
-  if (strcmp(var->name, c->key)) {
+  if (strcmp(var->name, (char *)c->key)) {
     tor_free(c->key);
-    c->key = tor_strdup(var->name);
+    c->key = (unsigned char *)tor_strdup(var->name);
   }
 
-  if (!strlen(c->value)) {
+  if (!strlen((char *)c->value)) {
     /* reset or clear it, then return */
     if (!clear_first) {
       if (var->type == CONFIG_TYPE_LINELIST ||
@@ -2099,8 +2099,8 @@ config_lines_dup(const config_line_t *inp)
   config_line_t **next_out = &result;
   while (inp) {
     *next_out = tor_malloc(sizeof(config_line_t));
-    (*next_out)->key = tor_strdup(inp->key);
-    (*next_out)->value = tor_strdup(inp->value);
+    (*next_out)->key = (unsigned char *)tor_strdup((char *)inp->key);
+    (*next_out)->value = (unsigned char *)tor_strdup((char *)inp->value);
     inp = inp->next;
     next_out = &((*next_out)->next);
   }
@@ -2131,13 +2131,13 @@ get_assigned_option(config_format_t *fmt, void *options,
   value = STRUCT_VAR_P(options, var->var_offset);
 
   result = tor_malloc_zero(sizeof(config_line_t));
-  result->key = tor_strdup(var->name);
+  result->key = (unsigned char *)tor_strdup(var->name);
   switch (var->type)
     {
     case CONFIG_TYPE_STRING:
     case CONFIG_TYPE_FILENAME:
       if (*(char**)value) {
-        result->value = tor_strdup(*(char**)value);
+        result->value = (unsigned char *)tor_strdup(*(char**)value);
       } else {
         tor_free(result->key);
         tor_free(result);
@@ -2146,8 +2146,8 @@ get_assigned_option(config_format_t *fmt, void *options,
       break;
     case CONFIG_TYPE_ISOTIME:
       if (*(time_t*)value) {
-        result->value = tor_malloc(ISO_TIME_LEN+1);
-        format_iso_time(result->value, *(time_t*)value);
+        result->value = (unsigned char *)tor_malloc(ISO_TIME_LEN+1);
+        format_iso_time((char *)result->value, *(time_t*)value);
       } else {
         tor_free(result->key);
         tor_free(result);
@@ -2156,7 +2156,7 @@ get_assigned_option(config_format_t *fmt, void *options,
       break;
     case CONFIG_TYPE_PORT:
       if (*(int*)value == CFG_AUTO_PORT) {
-        result->value = tor_strdup("auto");
+        result->value = (unsigned char *)tor_strdup("auto");
         escape_val = 0;
         break;
       }
@@ -2178,18 +2178,18 @@ get_assigned_option(config_format_t *fmt, void *options,
       escape_val = 0; /* Can't need escape. */
       break;
     case CONFIG_TYPE_BOOL:
-      result->value = tor_strdup(*(int*)value ? "1" : "0");
+      result->value = (unsigned char *)tor_strdup(*(int*)value ? "1" : "0");
       escape_val = 0; /* Can't need escape. */
       break;
     case CONFIG_TYPE_ROUTERSET:
-      result->value = routerset_to_string(*(routerset_t**)value);
+      result->value = (unsigned char *)routerset_to_string(*(routerset_t**)value);
       break;
     case CONFIG_TYPE_CSV:
       if (*(smartlist_t**)value)
         result->value =
-          smartlist_join_strings(*(smartlist_t**)value, ",", 0, NULL);
+          (unsigned char *)smartlist_join_strings(*(smartlist_t**)value, ",", 0, NULL);
       else
-        result->value = tor_strdup("");
+        result->value = (unsigned char *)tor_strdup("");
       break;
     case CONFIG_TYPE_OBSOLETE:
       log_fn(LOG_PROTOCOL_WARN, LD_CONFIG,get_lang_str(LANG_LOG_CONFIG_OBSOLETE_OPTION_VALUE),key);
@@ -2217,8 +2217,8 @@ get_assigned_option(config_format_t *fmt, void *options,
   if (escape_val) {
     config_line_t *line;
     for (line = result; line; line = line->next) {
-      if (line->value && config_value_needs_escape(line->value)) {
-        char *newval = esc_for_log(line->value);
+      if (line->value && config_value_needs_escape((char *)line->value)) {
+        unsigned char *newval = (unsigned char *)esc_for_log((char *)line->value);
         tor_free(line->value);
         line->value = newval;
       }
@@ -2299,7 +2299,7 @@ config_assign(config_format_t *fmt, void *options, config_line_t *list,
   	{	if(list->key[0]=='[')
 		{	for(i=0;list->key[i]>32;i++);
 			if(i) list->key[i]=0;
-			if(strcmp(section,list->key)==0)
+			if(strcmp(section,(char *)list->key)==0)
 			{	list=list->next;break;}
 		}
 		list=list->next;
@@ -2310,10 +2310,10 @@ config_assign(config_format_t *fmt, void *options, config_line_t *list,
   for (p = list; p; p = p->next) {
     if(p->key[0]!='[')
     {
-      const char *full = expand_abbrev(fmt, p->key, 0, 1);
-      if (strcmp(full,p->key)) {
+      const char *full = expand_abbrev(fmt, (char *)p->key, 0, 1);
+      if (strcmp(full,(char *)p->key)) {
         tor_free(p->key);
-        p->key = tor_strdup(full);
+        p->key = (unsigned char *)tor_strdup(full);
       }
     }
   }
@@ -2322,7 +2322,7 @@ config_assign(config_format_t *fmt, void *options, config_line_t *list,
    * mentioned config options, and maybe set to their defaults. */
   if (clear_first) {
     for (p = list; p; p = p->next)
-      config_reset_line(fmt, options, p->key, use_defaults);
+      config_reset_line(fmt, options, (char *)p->key, use_defaults);
   }
 
   options_seen = bitarray_init_zero(n_options);
@@ -2446,8 +2446,8 @@ option_reset(config_format_t *fmt, or_options_t *options,
     return; /* all done */
   if (var->initvalue) {
     c = tor_malloc_zero(sizeof(config_line_t));
-    c->key = tor_strdup(var->name);
-    c->value = tor_strdup(var->initvalue);
+    c->key = (unsigned char *)tor_strdup(var->name);
+    c->value = (unsigned char *)tor_strdup(var->initvalue);
     if (config_assign_value(fmt, options, c, &msg) < 0) {
       log_warn(LD_BUG,get_lang_str(LANG_LOG_CONFIG_DEFAULT_FAILED),msg);
       tor_free(msg); /* if this happens it's a bug */
@@ -2678,7 +2678,7 @@ static int
 config_lines_eq(config_line_t *a, config_line_t *b)
 {
   while (a && b) {
-    if (strcasecmp(a->key, b->key) || strcmp(a->value, b->value))
+    if (strcasecmp((char *)a->key, (char *)b->key) || strcmp((char *)a->value, (char *)b->value))
       return 0;
     a = a->next;
     b = b->next;
@@ -2818,7 +2818,7 @@ config_dump(config_format_t *fmt, void *options, int minimal,
     }
 
     for (; line; line = line->next) {
-      size_t len = strlen(line->key) + strlen(line->value) + 10;
+      size_t len = strlen((char *)line->key) + strlen((char *)line->value) + 10;
       char *tmp;
       tmp = tor_malloc(len);
       if (tor_snprintf(tmp, len, "%s%s%s%s\r\n\r\n",
@@ -2835,7 +2835,7 @@ config_dump(config_format_t *fmt, void *options, int minimal,
   if (fmt->extra) {
     line = *(config_line_t**)STRUCT_VAR_P(options, fmt->extra->var_offset);
     for (; line; line = line->next) {
-      size_t len = strlen(line->key) + strlen(line->value) + 5;
+      size_t len = strlen((char *)line->key) + strlen((char *)line->value) + 5;
       char *tmp;
       tmp = tor_malloc(len);
       if (tor_snprintf(tmp, len, "%s=%s\r\n\r\n", line->key, line->value)<0) {
@@ -2966,7 +2966,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
   int i;
   config_line_t *cl;
 #define REJECT(arg) \
-  STMT_BEGIN *msg = tor_strdup(arg); return 0; STMT_END
+  STMT_BEGIN *msg = (unsigned char *)tor_strdup(arg); return 0; STMT_END
 #define COMPLAIN(arg) STMT_BEGIN log(LOG_WARN, LD_CONFIG, arg); STMT_END
 
   tor_assert(msg);
@@ -3026,7 +3026,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
       char *address = NULL;
       uint16_t port;
       uint32_t addr;
-      if (parse_addr_port(LOG_WARN, line->value, &address, &addr, &port)<0)
+      if (parse_addr_port(LOG_WARN, (char *)line->value, &address, &addr, &port)<0)
         continue; /* We'll warn about this later. */
       if (!is_internal_IP(addr, 1) &&
           (!old_options || !config_lines_eq(old, opt))) {
@@ -3174,7 +3174,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
        * ReachableDirAddresses if they aren't set explicitly. */
       smartlist_t *instead = smartlist_create();
       config_line_t *new_line = tor_malloc_zero(sizeof(config_line_t));
-      new_line->key = tor_strdup("ReachableAddresses");
+      new_line->key = (unsigned char *)tor_strdup("ReachableAddresses");
       /* If we're configured with the old format, we need to prepend some
        * open ports. */
       SMARTLIST_FOREACH(options->FirewallPorts, const char *, portno,
@@ -3186,7 +3186,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
         tor_snprintf(s, 16, "*:%d", p);
         smartlist_add(instead, s);
       });
-      new_line->value = smartlist_join_strings(instead,",",0,NULL);
+      new_line->value = (unsigned char *)smartlist_join_strings(instead,",",0,NULL);
       /* These have been deprecated since 0.1.1.5-alpha-cvs */
       log(LOG_NOTICE, LD_CONFIG,get_lang_str(LANG_LOG_CONFIG_CONVERTING_FIREWALL_OPTIONS),new_line->value);
       options->ReachableAddresses = new_line;
@@ -3203,13 +3203,13 @@ options_validate(or_options_t *old_options, or_options_t *options,
     {
     /* We need to end with a reject *:*, not an implicit accept *:* */
     for (;;) {
-      if (!strcmp((*linep)->value, "reject *:*")) /* already there */
+      if (!strcmp((char *)(*linep)->value, "reject *:*")) /* already there */
         break;
       linep = &((*linep)->next);
       if (!*linep) {
         *linep = tor_malloc_zero(sizeof(config_line_t));
-        (*linep)->key = tor_strdup("ReachableAddresses");
-        (*linep)->value = tor_strdup("reject *:*");
+        (*linep)->key = (unsigned char *)tor_strdup("ReachableAddresses");
+        (*linep)->value = (unsigned char *)tor_strdup("reject *:*");
         break;
       }
     }
@@ -3391,7 +3391,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
     int all_are_local = 1;
     config_line_t *ln;
     for (ln = options->ControlListenAddress; ln; ln = ln->next) {
-      if (strcmpstart(ln->value, "127."))
+      if (strcmpstart((char *)ln->value, "127."))
         all_are_local = 0;
     }
     if (!all_are_local) {
@@ -3436,7 +3436,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
 //    REJECT(get_lang_str(LANG_LOG_CONFIG_USEBRIDGES_WITHOUT_TUNNELDIRCONS));
   if (options->Bridges) {
     for (cl = options->Bridges; cl; cl = cl->next) {
-      if (parse_bridge_line(cl->value, 1)<0)
+      if (parse_bridge_line((char *)cl->value, 1)<0)
         REJECT(get_lang_str(LANG_LOG_CONFIG_BRIDGE_LINE_PARSE_FAILED));
     }
   }
@@ -3883,7 +3883,7 @@ setopt_err_t options_init_from_string(const char *cf,int command, const char *co
 	}
 //	config_free(&options_format, newoptions);
 	if(*msg)
-	{	char *old_msg = *msg;
+	{	char *old_msg = (char *)*msg;
 		tor_asprintf(msg,get_lang_str(LANG_LOG_CONFIG_CONFIG_PARSE_FAILED),*msg);
 		tor_free(old_msg);
 	}
@@ -3915,7 +3915,7 @@ config_register_addressmaps(or_options_t *options)
   addressmap_clear_configured();
   elts = smartlist_create();
   for (opt = options->AddressMap; opt; opt = opt->next) {
-    smartlist_split_string(elts, opt->value, NULL,
+    smartlist_split_string(elts, (char *)opt->value, NULL,
                            SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 2);
     if (smartlist_len(elts) >= 2) {
       from = smartlist_get(elts,0);
@@ -4092,8 +4092,8 @@ static int write_configuration_file(char *fname, or_options_t *options)
 
 	switch(file_status(fname))
 	{	case FN_FILE:
-			old_val = read_file_to_str(fname, 0, NULL);
-			if(strcmpstart(old_val, GENERATED_FILE_PREFIX))
+			old_val = (unsigned char *)read_file_to_str(fname, 0, NULL);
+			if(strcmpstart((char *)old_val, GENERATED_FILE_PREFIX))
 				rename_old = 1;
 			tor_free(old_val);
 			break;
@@ -4105,7 +4105,7 @@ static int write_configuration_file(char *fname, or_options_t *options)
 			log_warn(LD_CONFIG,get_lang_str(LANG_LOG_CONFIG_CONFIG_FILE_NOT_A_FILE),fname);
 			return -1;
 	}
-	if(!(new_conf = options_dump(options, 1)))
+	if(!(new_conf = (unsigned char *)options_dump(options, 1)))
 		log_warn(LD_BUG,get_lang_str(LANG_LOG_CONFIG_CONFIG_STRING_ERROR));
 	else
 	{	if(global_state==NULL)
@@ -4127,7 +4127,7 @@ static int write_configuration_file(char *fname, or_options_t *options)
 		r = 0;
 		if(rename_old)
 			r = make_backup(fname);
-		if(r >= 0 && write_buf_to_file(fname,new_val,strlen(new_val)) < 0)
+		if(r >= 0 && write_buf_to_file(fname,(char *)new_val,strlen((char *)new_val)) < 0)
 		{	r = -1;
 			global_state->next_write = get_time(NULL) + STATE_WRITE_RETRY_INTERVAL;
 		}

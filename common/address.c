@@ -110,7 +110,7 @@ char *tor_sockaddr_to_str(const struct sockaddr *sa)
 	if(tor_addr_from_sockaddr(&addr, sa, &port) < 0)	return NULL;
 	if(! tor_addr_to_str(address,&addr,sizeof(address),1))	return NULL;
 	tor_asprintf(&result, "%s:%d", address, (int)port);
-	return result;
+	return (char *)result;
 }
 
 /** Set the tor_addr_t in <b>a</b> to contain the socket address contained in
@@ -283,7 +283,9 @@ tor_addr_is_internal(const tor_addr_t *addr, int for_listening)
   } else if (v_family == AF_INET6) {
     if (tor_addr_is_v4(addr)) { /* v4-mapped */
       v_family = AF_INET;
-      iph4 = ntohl(tor_addr_to_in6_addr32(addr)[3]);
+      uint32_t *addr32 = NULL;
+      addr32 = tor_addr_to_in6_addr32(addr);
+      iph4 = ntohl(addr32[3]);
     }
   }
 

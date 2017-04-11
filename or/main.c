@@ -1471,7 +1471,7 @@ void dumpstats(int severity)
 {
   time_t now = get_time(NULL);
   time_t elapsed;
-  int rbuf_cap, wbuf_cap, rbuf_len, wbuf_len;
+  size_t rbuf_cap, wbuf_cap, rbuf_len, wbuf_len;
 
   log(severity,LD_GENERAL,get_lang_str(LANG_LOG_MAIN_DUMPING_STATS));
 
@@ -1991,6 +1991,8 @@ int tor_main(int argc, char *argv[])
 	iplist_free();
 	if(hMutex) CloseHandle(hMutex);
 	tor_alloc_exit();
+	// ExitProcess no longer works with some OpenSSL setups
+	TerminateProcess(GetCurrentProcess(),0);
 	ExitProcess(0);
 }
 

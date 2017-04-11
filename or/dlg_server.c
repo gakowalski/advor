@@ -61,7 +61,7 @@ void getEditData2(config_line_t **option)
 				{
 					tmp1[i]=0;
 					*cfg1=tor_malloc_zero(sizeof(config_line_t));
-					(*cfg1)->key = tor_strdup("ExitPolicy");
+					(*cfg1)->key = (unsigned char *)tor_strdup("ExitPolicy");
 					l = strlen(&tmp1[j]);
 					(*cfg1)->value=tor_malloc(l+7+2);
 					memmove(&(*cfg1)->value[0],acceptstr,7);
@@ -79,7 +79,7 @@ void getEditData2(config_line_t **option)
 		{	if(j!=i)
 			{	tmp1[i]=0;
 				*cfg1=tor_malloc_zero(sizeof(config_line_t));
-				(*cfg1)->key = tor_strdup("ExitPolicy");
+				(*cfg1)->key = (unsigned char *)tor_strdup("ExitPolicy");
 				l = strlen(&tmp1[j]);
 				(*cfg1)->value=tor_malloc(l+7+2);
 				memmove(&(*cfg1)->value[0],rejectstr,7);
@@ -92,8 +92,8 @@ void getEditData2(config_line_t **option)
 	if(k)
 	{
 		*cfg1=tor_malloc_zero(sizeof(config_line_t));
-		(*cfg1)->key = tor_strdup("ExitPolicy");
-		(*cfg1)->value=tor_strdup("accept *:*");
+		(*cfg1)->key = (unsigned char *)tor_strdup("ExitPolicy");
+		(*cfg1)->value=(unsigned char *)tor_strdup("accept *:*");
 	}
 	tor_free(tmp1);
 }
@@ -104,8 +104,8 @@ void setEditData1(int editBox,config_line_t **option,BOOL isBanned)
 	if(*option==NULL)
 	{	LangEnterCriticalSection();
 		*option=tor_malloc_zero(sizeof(config_line_t));
-		(*option)->key = tor_strdup("ExitPolicy");
-		(*option)->value=tor_strdup("accept *:*");
+		(*option)->key = (unsigned char *)tor_strdup("ExitPolicy");
+		(*option)->value=(unsigned char *)tor_strdup("accept *:*");
 		LangLeaveCriticalSection();
 	}
 	if(*option!=NULL)
@@ -117,7 +117,7 @@ void setEditData1(int editBox,config_line_t **option,BOOL isBanned)
 			{	j=0;
 				while(1)
 				{
-					if(!strcasecmpstart(&cfg->value[j],"reject"))
+					if(!strcasecmpstart((char *)&cfg->value[j],"reject"))
 					{	j+=6;
 						for(;cfg->value[j]==32;j++)	;
 						for(;i<65530;i++,j++)
@@ -146,7 +146,7 @@ void setEditData1(int editBox,config_line_t **option,BOOL isBanned)
 				j=0;
 				while(1)
 				{
-					if(!strcasecmpstart(&cfg->value[j],"reject"))
+					if(!strcasecmpstart((char *)&cfg->value[j],"reject"))
 					{
 						for(;;j++)
 						{	if((!cfg->value[j])||(cfg->value[j]<32)||(cfg->value[j]==',')||(cfg->value[j]==';')) break;
@@ -154,7 +154,7 @@ void setEditData1(int editBox,config_line_t **option,BOOL isBanned)
 					}
 					else
 					{
-						if(!strcasecmpstart(&cfg->value[j],"accept"))
+						if(!strcasecmpstart((char *)&cfg->value[j],"accept"))
 						{
 							j+=6;
 							for(;cfg->value[j]==32;j++)	;
@@ -243,7 +243,7 @@ int __stdcall dlgServer(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		if(tmpOptions->Address) SetDlgItemText(hDlg,17104,tmpOptions->Address);
 		if(tmpOptions->ORPort){ CheckDlgButton(hDlg,17400,BST_CHECKED);SetDlgItemInt(hDlg,17100,tmpOptions->ORPort,0);}
 		else{	EnableWindow(GetDlgItem(hDlg,17100),0);EnableWindow(GetDlgItem(hDlg,17010),0);EnableWindow(GetDlgItem(hDlg,17101),0);}
-		if(tmpOptions->ORListenAddress)	SetDlgItemText(hDlg,17101,tmpOptions->ORListenAddress->value);
+		if(tmpOptions->ORListenAddress)	SetDlgItemText(hDlg,17101,(LPCSTR)tmpOptions->ORListenAddress->value);
 		else SetDlgItemText(hDlg,17101,"127.0.0.1");
 		if(tmpOptions->ShutdownWaitLength){ CheckDlgButton(hDlg,17412,BST_CHECKED);}
 		else	EnableWindow(GetDlgItem(hDlg,17110),0);

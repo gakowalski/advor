@@ -270,6 +270,8 @@ LONG __stdcall exception_filter(struct _EXCEPTION_POINTERS *ExceptionInfo)
 			CloseHandle(hFile);
 		}
 	}
+	// ExitProcess no longer works with some OpenSSL setups
+	TerminateProcess(GetCurrentProcess(),0);
 	ExitProcess(0);
 	return EXCEPTION_CONTINUE_SEARCH;
 }

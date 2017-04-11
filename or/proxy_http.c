@@ -205,8 +205,8 @@ int is_header_banned(char *name)
 	if(tmpOptions->BannedHeaders)
 	{	config_line_t *cfg;
 		for(cfg=tmpOptions->BannedHeaders;cfg;cfg=cfg->next)
-		{	j = strlen(cfg->value);
-			if(i >= j && !strcasecmpstart(name,cfg->value))
+		{	j = strlen((char *)cfg->value);
+			if(i >= j && !strcasecmpstart(name,(char *)cfg->value))
 				return 1;
 		}
 	}
@@ -223,7 +223,7 @@ void append_header(char *response,int *written,char *hdrname,char *hdrval)
 
 #define APPEND_STRING(a,b,c) \
 {	tor_snprintf((char *)a + (int)*b,(MAX_HTTP_HEADERS - (int)*b - 1),"%s",(char *)c);\
-	(int)*b += strlen((char *)a+(int)*b);\
+	*b += strlen((char *)a+(int)*b);\
 }
 
 void regen_googlebot(http_headers *hdrs,connection_t *conn,char *result,int *written)
@@ -2286,7 +2286,6 @@ void write_cookies(char *headers,int *written,char *host,DWORD pid,char *cookies
 void register_new_cookie(char *cookie,connection_t *conn)
 {	cookie_info **pcookies,*tmp_cookies;
 	int i,j;
-	char *expires = NULL;
 	int cflags = 0;
 	cookie_info *new_cookie = tor_malloc_zero(sizeof(cookie_info));
 	while(cookie[0] > 32 && cookie[0] != ':')	cookie++;
@@ -2310,10 +2309,10 @@ void register_new_cookie(char *cookie,connection_t *conn)
 	cookie += i;
 	while(cookie[0]!=13 && cookie[0]!=10)
 	{	while(cookie[0]==32 || cookie[0]==';')	cookie++;
-		if(!strcasecmpstart(cookie,"expires"))
-			expires = cookie;
-		else if(!strcasecmpstart(cookie,"max-age"))
-			expires = cookie;
+		if(!strcasecmpstart(cookie,"expires"));
+	//		expires = cookie;
+		else if(!strcasecmpstart(cookie,"max-age"));
+	//		expires = cookie;
 		else if(!strcasecmpstart(cookie,"domain"))
 		{	while(cookie[0] > 32 && cookie[0] != '=' && cookie[0] != ';')	cookie++;
 			while(cookie[0]==32)	cookie++;

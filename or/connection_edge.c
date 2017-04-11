@@ -735,10 +735,10 @@ static int addressmap_rewrite_reverse(char **address,time_t *expires_out)
 	addressmap_entry_t *ent;
 	int r = 0;
 	tor_asprintf(&s,"REVERSE[%s]",*address);
-	ent = strmap_get(addressmap, s);
+	ent = strmap_get(addressmap, (char *)s);
 	if(ent)
-	{	cp = escaped_safe_str_client(ent->new_address);
-		esc_l = escaped_safe_str_client(s);
+	{	cp = (unsigned char *)escaped_safe_str_client(ent->new_address);
+		esc_l = (unsigned char *)escaped_safe_str_client((char *)s);
 		log_info(LD_APP,get_lang_str(LANG_LOG_EDGE_ADDRESSMAP_REWRITE_REVDNS),esc_l,cp);
 		tor_free(cp);
 		tor_free(esc_l);
@@ -851,10 +851,10 @@ static void client_dns_set_addressmap_impl(const char *address, const char *name
 		tor_asprintf(&extendedval,"%s.%s.exit", name, exitname);
 	}
 	else
-	{	extendedaddress = tor_strdup(address);
-		extendedval = tor_strdup(name);
+	{	extendedaddress = (unsigned char *)tor_strdup(address);
+		extendedval = (unsigned char *)tor_strdup(name);
 	}
-	addressmap_register(extendedaddress,extendedval,get_time(NULL) + ttl,ADDRMAPSRC_DNS);
+	addressmap_register((char *)extendedaddress,(char *)extendedval,get_time(NULL) + ttl,ADDRMAPSRC_DNS);
 	tor_free(extendedaddress);
 }
 
@@ -1219,7 +1219,7 @@ consider_plaintext_ports(edge_connection_t *conn, uint16_t port)
 /** How many times do we try connecting with an exit configured via
  * TrackHostExits before concluding that it won't work any more and trying a
  * different one? */
-#define TRACKHOSTEXITS_RETRIES 10
+#define TRACKHOSTEXITS_RETRIES (unsigned int)10
 
 /** Call connection_ap_handshake_rewrite_and_attach() unless a controller asked us to leave streams unattached. Return 0 in that case.
  *  See connection_ap_handshake_rewrite_and_attach()'s documentation for arguments and return value. */

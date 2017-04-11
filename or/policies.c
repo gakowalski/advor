@@ -125,7 +125,7 @@ parse_addr_policy(config_line_t *cfg, smartlist_t **dest,
   result = smartlist_create();
   entries = smartlist_create();
   for (; cfg; cfg = cfg->next) {
-    smartlist_split_string(entries, cfg->value, ",",
+    smartlist_split_string(entries, (char *)cfg->value, ",",
                            SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
     SMARTLIST_FOREACH(entries, const char *, ent,
     {
@@ -320,22 +320,22 @@ int validate_addr_policies(or_options_t *options, unsigned char **msg)
 	smartlist_t *addr_policy=NULL;
 	*msg = NULL;
 	if (policies_parse_exit_policy(options->ExitPolicy,&addr_policy,options->ExitPolicyRejectPrivate,NULL,!options->BridgeRelay))
-		*msg = tor_strdup("Error in ExitPolicy entry.");
+		*msg = (unsigned char *)tor_strdup("Error in ExitPolicy entry.");
 	/* The rest of these calls *append* to addr_policy. So don't actually use the results for anything other than checking if they parse! */
 	else if (parse_addr_policy(options->DirPolicy, &addr_policy, -1))
-		*msg = tor_strdup("Error in DirPolicy entry.");
+		*msg = (unsigned char *)tor_strdup("Error in DirPolicy entry.");
 	else if (parse_addr_policy(options->SocksPolicy, &addr_policy, -1))
-		*msg = tor_strdup("Error in SocksPolicy entry.");
+		*msg = (unsigned char *)tor_strdup("Error in SocksPolicy entry.");
 	else if (parse_addr_policy(options->AuthDirReject, &addr_policy,ADDR_POLICY_REJECT))
-		*msg = tor_strdup("Error in AuthDirReject entry.");
+		*msg = (unsigned char *)tor_strdup("Error in AuthDirReject entry.");
 	else if (parse_addr_policy(options->AuthDirInvalid, &addr_policy,ADDR_POLICY_REJECT))
-		*msg = tor_strdup("Error in AuthDirInvalid entry.");
+		*msg = (unsigned char *)tor_strdup("Error in AuthDirInvalid entry.");
 	else if (parse_addr_policy(options->AuthDirBadDir, &addr_policy,ADDR_POLICY_REJECT))
-		*msg = tor_strdup("Error in AuthDirBadDir entry.");
+		*msg = (unsigned char *)tor_strdup("Error in AuthDirBadDir entry.");
 	else if (parse_addr_policy(options->AuthDirBadExit, &addr_policy,ADDR_POLICY_REJECT))
-		*msg = tor_strdup("Error in AuthDirBadExit entry.");
+		*msg = (unsigned char *)tor_strdup("Error in AuthDirBadExit entry.");
 	else if (parse_addr_policy(options->ReachableAddresses, &addr_policy,ADDR_POLICY_ACCEPT))
-		*msg = tor_strdup("Error in ReachableAddresses entry.");
+		*msg = (unsigned char *)tor_strdup("Error in ReachableAddresses entry.");
 	addr_policy_list_free(addr_policy);
 	return *msg ? -1 : 0;
 }
@@ -680,7 +680,7 @@ append_exit_policy_string(smartlist_t **policy, const char *more)
   config_line_t tmp;
 
   tmp.key = NULL;
-  tmp.value = (char*) more;
+  tmp.value = (unsigned char*) more;
   tmp.next = NULL;
   if (parse_addr_policy(&tmp, policy, -1)<0) {
     log_warn(LD_BUG,get_lang_str(LANG_LOG_POLICIES_PARSE_ERROR),more);

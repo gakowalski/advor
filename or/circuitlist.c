@@ -1448,12 +1448,11 @@ circuit_t *get_circuit_by_hitem(HTREEITEM hItem)
 char *circuit_dump(circuit_t *circ)
 {	char *s=tor_malloc_zero(8192);
 	char s2[30];
-	circid_t n_circ_id = circ->n_circ_id, p_circ_id = 0;
+	circid_t n_circ_id = circ->n_circ_id;
 	if(!circ->marked_for_close)
 	{	format_rfc1123_time(s2,(long)circ->timestamp_created.tv_sec);
 		if(!CIRCUIT_IS_ORIGIN(circ))
-		{	p_circ_id = TO_OR_CIRCUIT(circ)->p_circ_id;
-			tor_snprintf(s,8192,get_lang_str(LANG_NETINFO_CIRCUIT_DUMP),n_circ_id,circuit_purpose_to_string(circ->purpose),circ->state,circuit_state_to_string(circ->state),s2);
+		{	tor_snprintf(s,8192,get_lang_str(LANG_NETINFO_CIRCUIT_DUMP),n_circ_id,circuit_purpose_to_string(circ->purpose),circ->state,circuit_state_to_string(circ->state),s2);
 		}
 		else
 		{	char *s1 = circuit_list_path(TO_ORIGIN_CIRCUIT(circ),1);

@@ -1589,7 +1589,7 @@ networkstatus_compute_consensus(smartlist_t *votes,
       if (flavor == FLAV_MICRODESC &&
           !tor_digest256_is_zero(microdesc_digest)) {
         unsigned char m[BASE64_DIGEST256_LEN+1], *cp;
-        digest256_to_base64(m, microdesc_digest);
+        digest256_to_base64((char *)m, microdesc_digest);
         tor_asprintf(&cp, "m %s\n", m);
         smartlist_add(chunks, cp);
       }
@@ -1858,10 +1858,7 @@ networkstatus_add_detached_signatures(networkstatus_t *target,
     networkstatus_voter_info_t *target_voter =
       networkstatus_get_voter_by_id(target, sig->identity_digest);
     authority_cert_t *cert = NULL;
-    const char *algorithm;
     document_signature_t *old_sig = NULL;
-
-    algorithm = crypto_digest_algorithm_get_name(sig->alg);
 
     base16_encode(voter_identity, sizeof(voter_identity),
                   sig->identity_digest, DIGEST_LEN);
@@ -1954,7 +1951,7 @@ networkstatus_format_signatures(networkstatus_t *consensus,
                      digest_name, id, sk);
       }
       smartlist_add(elements, tor_strdup(buf));
-      base64_encode(buf, sizeof(buf), sig->signature, sig->signature_len);
+      base64_encode(buf, sizeof(buf), sig->signature, sig->signature_len,BASE64_ENCODE_MULTILINE);
       strlcat(buf, "-----END SIGNATURE-----\n", sizeof(buf));
       smartlist_add(elements, tor_strdup(buf));
     } SMARTLIST_FOREACH_END(sig);

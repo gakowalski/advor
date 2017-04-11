@@ -5,7 +5,6 @@
 option	casemap:none
 
 include	\masm32\include\windows.inc
-include	\masm32\include\user32.inc
 include	\masm32\include\kernel32.inc
 include	\masm32\include\shell32.inc
 include	\masm32\include\user32.inc
@@ -13,7 +12,6 @@ include	\masm32\include\user32.inc
 includelib	\masm32\lib\user32.lib
 includelib	\masm32\lib\kernel32.lib
 includelib	\masm32\lib\shell32.lib
-includelib	\masm32\lib\user32.lib
 
 tree_item	struct
 	key	dd	?
@@ -40,11 +38,11 @@ tree_item	ends
 	txt_size dd	?
 	max_tzari dd	?
 	max_coduri dd	?
-	buffer1	db	76384000 dup(?)
-	buffer2	db	76384000 dup(?)
-	buffer3	db	76384000 dup(?)
-	buffer4	db	76384000 dup(?)
-	buffer5	db	76384000 dup(?)
+	buffer1	db	176384000 dup(?)
+	buffer2	db	176384000 dup(?)
+	buffer3	db	176384000 dup(?)
+	buffer4	db	176384000 dup(?)
+	buffer5	db	176384000 dup(?)
 
 .code
 fname	db	'aggr.html',0

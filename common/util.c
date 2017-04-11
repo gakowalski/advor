@@ -13,6 +13,8 @@
  */
 #define _GNU_SOURCE
 
+#include <openssl/rsa.h>
+
 #include "orconfig.h"
 #include "util.h"
 #include "log.h"
@@ -290,9 +292,7 @@ void *_tor_malloc(size_t size DMALLOC_PARAMS)
 	);
 	if(result)
 	{	if(alloc_root)
-		{	uint32_t *next;
-			next = alloc_last;
-			result[0] = (uint32_t)alloc_last;
+		{	result[0] = (uint32_t)alloc_last;
 			alloc_last[1] = (uint32_t)result;
 			alloc_last = result;
 		}
@@ -1777,7 +1777,7 @@ char *rate_limit_log(ratelim_t *lim, time_t now)
 	{	if(n == 1)	return tor_strdup("");
 		unsigned char *cp=NULL;
 		tor_asprintf(&cp," [%d similar message(s) suppressed in last %d seconds]",n-1, lim->rate);
-		return cp;
+		return (char *)cp;
 	}
 	return NULL;
 }

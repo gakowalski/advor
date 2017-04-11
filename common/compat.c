@@ -172,7 +172,7 @@ int tor_vasprintf(unsigned char **strp, const char *fmt, va_list args)
 	len = vsnprintf(buf, sizeof(buf), fmt, tmp_args);
 	va_end(tmp_args);
 	if(len < (int)sizeof(buf))
-	{	*strp = tor_strdup(buf);
+	{	*strp = (unsigned char *)tor_strdup(buf);
 		return len;
 	}
 	strp_tmp = tor_malloc(len+1);
@@ -182,7 +182,7 @@ int tor_vasprintf(unsigned char **strp, const char *fmt, va_list args)
 		*strp = NULL;
 		return -1;
 	}
-	*strp = strp_tmp;
+	*strp = (unsigned char *)strp_tmp;
 	return len;
 }
 

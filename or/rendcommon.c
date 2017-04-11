@@ -459,7 +459,7 @@ int rend_encode_v2_descriptors(smartlist_t *descs_out,rend_service_descriptor_t 
 		}
 		/* Base64-encode introduction points. */
 		ipos_base64 = tor_malloc_zero(ipos_len * 2);
-		if(base64_encode(ipos_base64, ipos_len * 2, ipos, ipos_len)<0)
+		if(base64_encode(ipos_base64, ipos_len * 2, ipos, ipos_len,BASE64_ENCODE_MULTILINE)<0)
 		{	log_warn(LD_REND,get_lang_str(LANG_LOG_RENDCOMMON_ERROR_ENCODING_INTRO_POINTS_2),(int)ipos_len);
 			tor_free(ipos_base64);
 			tor_free(ipos);

@@ -571,7 +571,7 @@ networkstatus_check_consensus_signature(networkstatus_t *consensus,
         tor_asprintf(&cp,get_lang_str(LANG_LOG_NETWORKSTATUS_MISSING_KEYS),n_missing_key);
         smartlist_add(sl,cp);
       }
-      cp = smartlist_join_strings(sl, " ", 0, NULL);
+      cp = (unsigned char *)smartlist_join_strings(sl, " ", 0, NULL);
       log(severity, LD_DIR, "%s", cp);
       tor_free(cp);
       SMARTLIST_FOREACH(sl, char *, c, tor_free(c));

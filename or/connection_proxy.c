@@ -162,7 +162,7 @@ int connection_proxy_connect(connection_t *conn,int ntlm)
 		if(options->DirFlags&DIR_FLAG_HTTPS_PROXY && options->ORProxy)
 			tor_asprintf(&buf,"CONNECT %s:%d HTTP/1.0\r\n\r\n",fmt_addr(&options->ORProxyAddr), conn->port);
 		else	tor_asprintf(&buf,"CONNECT %s:%d HTTP/1.0\r\n\r\n",fmt_addr(&conn->addr), conn->port);
-		connection_write_to_buf(buf,strlen(buf), conn);
+		connection_write_to_buf((char *)buf,strlen((char *)buf), conn);
 		tor_free(buf);
 		conn->proxy_state = PROXY_NTLM_WANT_CONNECT_OK;
 	}
@@ -246,7 +246,7 @@ int dir_proxy_connect(connection_t *conn,int ntlm)
 		if(options->DirFlags&DIR_FLAG_HTTP_PROXY && options->DirProxy)
 			tor_asprintf(&buf,"CONNECT %s:%d HTTP/1.0\r\n\r\n",fmt_addr(&options->DirProxyAddr), conn->port);
 		else	tor_asprintf(&buf,"CONNECT %s:%d HTTP/1.0\r\n\r\n",fmt_addr(&conn->addr), conn->port);
-		connection_write_to_buf(buf,strlen(buf), conn);
+		connection_write_to_buf((char *)buf,strlen((char *)buf), conn);
 		tor_free(buf);
 		conn->proxy_state = PROXY_NTLM_WANT_CONNECT_OK;
 	}
@@ -455,7 +455,7 @@ static int connection_read_ntlm_proxy_response(connection_t *conn,int isdir)
 						}
 						buildSmbNtlmAuthResponse(&challenge,&response,user,pass);
 						tor_free(user);tor_free(pass);
-						base64_encode(requeststr,1023,(char *)&response,SmbLength(&response));
+						base64_encode(requeststr,1023,(char *)&response,SmbLength(&response),0);
 					}
 					else
 					{	log(LOG_DEBUG,LD_APP,get_lang_str(LANG_LOG_NTLM_MESSAGE_TYPE_1));
@@ -488,7 +488,7 @@ static int connection_read_ntlm_proxy_response(connection_t *conn,int isdir)
 						buildSmbNtlmAuthRequest(&request,workstation,domain);
 						if(workstation)	tor_free(workstation);
 						if(domain)	tor_free(domain);
-						base64_encode(requeststr,1023,(char *)&request,SmbLength(&request));
+						base64_encode(requeststr,1023,(char *)&request,SmbLength(&request),0);
 					}
 					j=0;
 					for(i=0;requeststr[i];i++)
@@ -514,7 +514,7 @@ static int connection_read_ntlm_proxy_response(connection_t *conn,int isdir)
 					}
 					unsigned char *buf;
 					tor_asprintf(&buf,"CONNECT %s:%d HTTP/1.0\r\nAuthorization: NTLM %s\r\n\r\n",fmt_addr(addr),port,requeststr);
-					connection_write_to_buf(buf,strlen(buf),conn);
+					connection_write_to_buf((char *)buf,strlen((char *)buf),conn);
 					tor_free(buf);
 					tor_free(requeststr);
 					status_code = 0;

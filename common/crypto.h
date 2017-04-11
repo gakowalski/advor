@@ -14,6 +14,7 @@
 #define _TOR_CRYPTO_H
 
 #include <stdio.h>
+#include <openssl/rsa.h>
 #include "torint.h"
 
 /** Length of the output of our message digest. */
@@ -30,6 +31,7 @@
 /** Length of our DH keys. */
 #define DH_BYTES (1024/8)
 
+#define BASE64_ENCODE_MULTILINE 1
 /** Length of a sha1 message digest when encoded in base64 with trailing =
  * signs removed. */
 #define BASE64_DIGEST_LEN 27
@@ -75,7 +77,12 @@ typedef struct {
   char d[N_DIGEST_ALGORITHMS][DIGEST256_LEN];
 } digests_t;
 
-typedef struct crypto_pk_env_t crypto_pk_env_t;
+/** A public key, or a public/private key-pair. */
+typedef struct {
+  int refs; /**< reference count, so we don't have to copy keys */
+  RSA *key; /**< The key itself */
+} crypto_pk_env_t;
+
 typedef struct crypto_cipher_env_t crypto_cipher_env_t;
 typedef struct crypto_digest_env_t crypto_digest_env_t;
 typedef struct crypto_dh_env_t crypto_dh_env_t;
@@ -112,7 +119,8 @@ char *crypto_pk_get_private_key_str(crypto_pk_env_t *env);
 int crypto_pk_check_key(crypto_pk_env_t *env);
 int crypto_pk_cmp_keys(crypto_pk_env_t *a, crypto_pk_env_t *b);
 size_t crypto_pk_keysize(crypto_pk_env_t *env);
-crypto_pk_env_t *crypto_pk_dup_key(crypto_pk_env_t *orig);
+crypto_pk_env_t *crypto_pk_dup_key_(crypto_pk_env_t *env);
+crypto_pk_env_t *crypto_pk_dup_key(crypto_pk_env_t *env);
 crypto_pk_env_t *crypto_pk_copy_full(crypto_pk_env_t *orig);
 int crypto_pk_key_is_private(const crypto_pk_env_t *key);
 
@@ -213,7 +221,7 @@ struct smartlist_t;
 void *smartlist_choose(const struct smartlist_t *sl);
 void smartlist_shuffle(struct smartlist_t *sl);
 
-int base64_encode(char *dest, size_t destlen, const char *src, size_t srclen);
+int base64_encode(char *dest, size_t destlen, const char *src, size_t srclen, int flags);
 int base64_decode(char *dest, size_t destlen, const char *src, size_t srclen);
 /** Characters that can appear (case-insensitively) in a base-32 encoding. */
 #define BASE32_CHARS "abcdefghijklmnopqrstuvwxyz234567"
@@ -238,8 +246,11 @@ int crypto_pk_num_bits(crypto_pk_env_t *env);
 int crypto_digest256(char *digest, const char *m, size_t len,digest_algorithm_t algorithm);
 int crypto_digest_all(digests_t *ds_out, const char *m, size_t len);
 int crypto_pk_generate_key_with_bits(crypto_pk_env_t *env, int bits);
+int crypto_pk_generate_env_with_bits(crypto_pk_env_t *env, int bits);
 #define crypto_pk_generate_key(env)                     \
   crypto_pk_generate_key_with_bits((env), (PK_BYTES*8))
+#define crypto_pk_generate_key_(env)                     \
+  crypto_pk_generate_env_with_bits((env), (PK_BYTES*8))
 #ifdef CRYPTO_PRIVATE
 /* Prototypes for private functions only used by tortls.c and crypto.c */
 struct rsa_st;
@@ -250,6 +261,7 @@ crypto_pk_env_t *_crypto_new_pk_env_rsa(struct rsa_st *rsa);
 crypto_pk_env_t *_crypto_new_pk_env_evp_pkey(struct evp_pkey_st *pkey);
 struct evp_pkey_st *_crypto_pk_env_get_evp_pkey(crypto_pk_env_t *env,
                                                 int private);
+EVP_PKEY *crypto_pk_get_evp_pkey_(crypto_pk_env_t *env, int private);
 struct dh_st *_crypto_dh_env_get_dh(crypto_dh_env_t *dh);
 /* Prototypes for private functions only used by crypto.c and test.c*/
 void add_spaces_to_fp(char *out, size_t outlen, const char *in);

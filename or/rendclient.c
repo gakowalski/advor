@@ -459,7 +459,7 @@ directory_get_from_hs_dir(const char *desc_id, const rend_data_t *rend_query)
   if (rend_query->auth_type != REND_NO_AUTH) {
     if (base64_encode(descriptor_cookie_base64,
                       sizeof(descriptor_cookie_base64),
-                      rend_query->descriptor_cookie, REND_DESC_COOKIE_LEN)<0) {
+                      rend_query->descriptor_cookie, REND_DESC_COOKIE_LEN,0)<0) {
       log_warn(LD_BUG,get_lang_str(LANG_LOG_RENDCLIENT_ERROR_ENCODING_COOKIE));
       return 0;
     }
@@ -920,7 +920,7 @@ int rend_parse_service_authorization(or_options_t *options, int validate_only)
 		auth = NULL;
 		SMARTLIST_FOREACH(sl, char *, c, tor_free(c););
 		smartlist_clear(sl);
-		smartlist_split_string(sl, line->value, " ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 3);
+		smartlist_split_string(sl, (char *)line->value, " ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 3);
 		if(smartlist_len(sl) < 2)
 		{	log_warn(LD_CONFIG,get_lang_str(LANG_LOG_RENDCLIENT_CONFIG_LINE_ERROR),line->value);
 			break;

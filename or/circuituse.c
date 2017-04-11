@@ -1152,7 +1152,7 @@ consider_recording_trackhost(edge_connection_t *conn, origin_circuit_t *circ)
                conn->socks_request->address, fp);
   log_debug(LD_APP|LD_CIRC,get_lang_str(LANG_LOG_CIRCUITUSE_REGISTERING_NEW_TRACKED_EXIT),new_address);
 
-  addressmap_register(conn->socks_request->address, new_address,
+  addressmap_register(conn->socks_request->address, (char *)new_address,
                       options->TrackHostExitsExpire?(get_time(NULL) + options->TrackHostExitsExpire):0,
                       ADDRMAPSRC_TRACKEXIT);
 }

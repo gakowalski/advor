@@ -350,14 +350,14 @@ int __stdcall dlgBridges(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 			{	getEditData1(hDlg,24100,&tmpOptions->Bridges,"Bridges");
 				clear_bridge_list();
 				config_line_t *cfg;
-				for(cfg=tmpOptions->Bridges;cfg;cfg=cfg->next)	parse_bridge_line(cfg->value,0);
+				for(cfg=tmpOptions->Bridges;cfg;cfg=cfg->next)	parse_bridge_line((char *)cfg->value,0);
 			}
 		}
 		else if((LOWORD(wParam)==24100)&&(HIWORD(wParam)==EN_CHANGE))
 		{	getEditData1(hDlg,24100,&tmpOptions->Bridges,"Bridges");
 			clear_bridge_list();
 			config_line_t *cfg;
-			for(cfg=tmpOptions->Bridges;cfg;cfg=cfg->next)	parse_bridge_line(cfg->value,0);
+			for(cfg=tmpOptions->Bridges;cfg;cfg=cfg->next)	parse_bridge_line((char *)cfg->value,0);
 		}
 		else if(LOWORD(wParam)==24402)
 		{	int i = IsDlgButtonChecked(hDlg,24402);

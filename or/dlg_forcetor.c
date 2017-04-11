@@ -370,7 +370,7 @@ int addQuickStartItem(config_line_t *cfg)
 	int i,j;
 	if(!hDlgQuickStart)	return -1;
 	tmp2=tor_malloc(256);
-	tmp1=cfg->value;tmp2[0]=0;
+	tmp1=(char *)cfg->value;tmp2[0]=0;
 	for(i=0;(*tmp1!='=')&&*tmp1&&i<255;tmp1++)	tmp2[i++]=*tmp1;
 	tmp2[i]=0;
 	lvitw.iSubItem=0;lvitw.mask=LVIF_TEXT|LVIF_PARAM;lvitw.state=0;lvitw.stateMask=0;lvitw.iImage=0;
@@ -414,7 +414,7 @@ void updateQuickStartItem(config_line_t *cfg)
 		lvitw.iItem++;
 	}
 	tmp2=tor_malloc(256);
-	tmp1=cfg->value;tmp2[0]=0;
+	tmp1=(char *)cfg->value;tmp2[0]=0;
 	for(i=0;(*tmp1!='=')&&*tmp1&&i<255;tmp1++)	tmp2[i++]=*tmp1;
 	tmp2[i]=0;
 	LangSetLVItem(hDlgQuickStart,12400,lvitw.iItem,0,tmp2);
@@ -481,7 +481,7 @@ HMENU getProcessesMenu(int tray)
 	char *tmp2=tor_malloc(256);
 	config_line_t *cfg;
 	for(cfg=tmpOptions->QuickStart;cfg;cfg=cfg->next)
-	{	char *tmp1=cfg->value;tmp2[0]=0;
+	{	char *tmp1=(char *)cfg->value;tmp2[0]=0;
 		if(tmp1)
 		{	for(i=0;(*tmp1!='=')&&*tmp1;tmp1++)	tmp2[i++]=*tmp1;
 			tmp2[i]=0;
@@ -540,8 +540,8 @@ void dlgForceTor_interceptNewProcess(void)
 			{	cfg=tor_malloc_zero(sizeof(config_line_t));
 				tmpOptions->QuickStart=cfg;
 			}
-			cfg->key = tor_strdup("QuickStart");
-			cfg->value=tor_strdup(tmp1);
+			cfg->key = (unsigned char *)tor_strdup("QuickStart");
+			cfg->value=(unsigned char *)tor_strdup(tmp1);
 			if(hDlgQuickStart)
 				lvitw.iItem = SendDlgItemMessage(hDlgQuickStart,12400,LVM_GETITEMCOUNT,0,0);
 			addQuickStartItem(cfg);
@@ -633,8 +633,8 @@ void dlgForceTor_addNewProcess(config_line_t *cfg1)
 		i=4|tmpOptions->ForceFlags;
 		tor_snprintf(tmp1,strlen(exeName)+1024,"%s=%d,\"%s\" %s",progNameTmp,i,tmp2,cmdLineTmp);
 		if(cfg1)
-		{	char *tmp4 = cfg1->value;
-			cfg1->value = tor_strdup(tmp1);
+		{	char *tmp4 = (char *)cfg1->value;
+			cfg1->value = (unsigned char *)tor_strdup(tmp1);
 			tor_free(tmp4);
 			updateQuickStartItem(cfg1);
 		}
@@ -648,8 +648,8 @@ void dlgForceTor_addNewProcess(config_line_t *cfg1)
 			{	cfg=tor_malloc_zero(sizeof(config_line_t));
 				tmpOptions->QuickStart=cfg;
 			}
-			cfg->key = tor_strdup("QuickStart");
-			cfg->value=tor_strdup(tmp1);
+			cfg->key = (unsigned char *)tor_strdup("QuickStart");
+			cfg->value=(unsigned char *)tor_strdup(tmp1);
 			lvitw.iItem = SendDlgItemMessage(hDlgQuickStart,12400,LVM_GETITEMCOUNT,0,0);
 			addQuickStartItem(cfg);
 		}
@@ -832,13 +832,13 @@ void dlgForceTor_quickStart()
 		char *tmp2=NULL;
 		for(cfg=tmpOptions->QuickStart;cfg;cfg=cfg->next)
 		{	if(cfg->value)
-			{	if(!strchr(cfg->value, '='))
+			{	if(!strchr((char *)cfg->value, '='))
 				{	if(!tmp2)
 					{	if(tmpOptions->LocalHost && tmpOptions->LocalHost[0])	tmp2=tor_strdup(tmpOptions->LocalHost);
 						else							tmp2=tor_strdup("localhost");
 					}
 					for(cfg2=tmpOptions->QuickStart;cfg2;cfg2=cfg2->next)
-					{	if(!strcasecmpstart(cfg2->value,cfg->value) && strchr(cfg2->value, '='))
+					{	if(!strcasecmpstart((char *)cfg2->value,(char *)cfg->value) && strchr((char *)cfg2->value, '='))
 						{	CreateNewProcess((DWORD)cfg2->value,(HANDLE)tmpOptions->SocksPort,4|tmpOptions->ForceFlags,best_delta_t,tmp2,(DWORD)crypto_rand_int(0x7fffffff));
 							break;
 						}
@@ -853,7 +853,7 @@ void dlgForceTor_quickStart()
 			}
 			cfg=tmpOptions->QuickStart;
 			while(cfg)
-			{	if(!strchr(cfg->value, '='))
+			{	if(!strchr((char *)cfg->value, '='))
 				{	tor_free(cfg->key);tor_free(cfg->value);
 					tmpOptions->QuickStart=cfg->next;
 					tor_free(cfg);cfg=tmpOptions->QuickStart;
@@ -862,7 +862,7 @@ void dlgForceTor_quickStart()
 			}
 			for(cfg=tmpOptions->QuickStart;cfg&&cfg->next;)
 			{	cfg2=cfg->next;
-				if(!strchr(cfg2->value, '='))
+				if(!strchr((char *)cfg2->value, '='))
 				{	tor_free(cfg2->key);tor_free(cfg2->value);
 					cfg->next=cfg2->next;
 					tor_free(cfg2);
@@ -882,7 +882,7 @@ void dlgForceTor_quickStart()
 					else							tmp2=tor_strdup("localhost");
 				}
 				for(cfg2=tmpOptions->QuickStart;cfg2;cfg2=cfg2->next)
-				{	if(!strcasecmpstart(cfg2->value,cfg->value) && strchr(cfg2->value, '='))
+				{	if(!strcasecmpstart((char *)cfg2->value,(char *)cfg->value) && strchr((char *)cfg2->value, '='))
 					{	started_processes[i] = CreateNewProcess((DWORD)cfg2->value,(HANDLE)tmpOptions->SocksPort,4|tmpOptions->ForceFlags,best_delta_t,tmp2,(DWORD)crypto_rand_int(0x7fffffff));
 						i++;
 						break;

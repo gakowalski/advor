@@ -55,7 +55,7 @@ int __stdcall dlgCircuitBuild(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		SetDlgItemInt(hDlg,14103,tmpOptions->NewCircuitPeriod,0);
 		SetDlgItemInt(hDlg,14104,tmpOptions->MaxCircuitDirtiness,0);
 		SetDlgItemInt(hDlg,14110,tmpOptions->NumEntryGuards,0);
-		unsigned char *str;tor_asprintf(&str,"%.04f",tmpOptions->CircuitPriorityHalflife);SetDlgItemText(hDlg,14109,str);tor_free(str);
+		unsigned char *str;tor_asprintf(&str,"%.04f",tmpOptions->CircuitPriorityHalflife);SetDlgItemText(hDlg,14109,(char *)str);tor_free(str);
 		if(tmpOptions->CircuitBuildTimeout){ CheckDlgButton(hDlg,14400,BST_CHECKED);}
 		else	EnableWindow(GetDlgItem(hDlg,14100),0);
 		if(tmpOptions->CircuitIdleTimeout){ CheckDlgButton(hDlg,14401,BST_CHECKED);}

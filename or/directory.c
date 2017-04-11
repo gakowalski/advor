@@ -1183,7 +1183,7 @@ directory_send_command(dir_connection_t *conn,
   }
   tor_free(url);
   if((((get_options()->DirFlags & DIR_FLAG_HTTP_PROXY) && get_options()->DirProxy && get_options()->DirProxyProtocol!=PROXY_HTTP) || ((get_options()->DirFlags & DIR_FLAG_NTLM_PROXY) && get_options()->CorporateProxy)) && TO_CONN(conn)->proxy_state != PROXY_CONNECTED)
-  {	int i = strlen(request);
+  {	int i = strlen((char *)request);
   	conn->orig_request_len = i + (payload?payload_len:0) + 1;
   	if(conn->orig_request)	tor_free(conn->orig_request);
   	conn->orig_request = tor_malloc(conn->orig_request_len);
@@ -1191,7 +1191,7 @@ directory_send_command(dir_connection_t *conn,
 	if(payload)	memcpy(conn->orig_request + i,payload,payload_len);
   }
   else
-  {	connection_write_to_buf(request, strlen(request), TO_CONN(conn));
+  {	connection_write_to_buf((char *)request, strlen((char *)request), TO_CONN(conn));
 	if (payload) {
 	/* then send the payload afterwards too */
 	connection_write_to_buf(payload, payload_len, TO_CONN(conn));

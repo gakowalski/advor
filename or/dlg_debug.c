@@ -151,8 +151,8 @@ void set_log_filter(void)
 		{	if(j!=i)
 			{	k=tmp1[i];tmp1[i]=0;
 				*cfg1=tor_malloc_zero(sizeof(config_line_t));
-				(*cfg1)->key = tor_strdup("NotifyFilter");
-				(*cfg1)->value=tor_strdup(&tmp1[j]);
+				(*cfg1)->key = (unsigned char *)tor_strdup("NotifyFilter");
+				(*cfg1)->value=(unsigned char *)tor_strdup(&tmp1[j]);
 				cfg1=&((*cfg1)->next);
 				tmp1[i]=k;
 			}

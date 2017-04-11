@@ -713,7 +713,7 @@ int router_append_dirobj_signature(char *buf, size_t buf_len, const char *digest
 			log_warn(LD_BUG,get_lang_str(LANG_LOG_DIRSERV_BUFFER_OVERFLOW));
 		else
 		{	i = strlen(buf);
-			if(base64_encode(buf+i, buf_len-i, signature, siglen) < 0)
+			if(base64_encode(buf+i, buf_len-i, signature, siglen,BASE64_ENCODE_MULTILINE) < 0)
 				log_warn(LD_BUG,get_lang_str(LANG_LOG_ROUTERPARSE_ERROR_ENCODING_SIGNATURE));
 			else
 			{	if(strlcat(buf, "-----END SIGNATURE-----\n", buf_len) >= buf_len)

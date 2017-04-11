@@ -248,11 +248,10 @@ logv(int severity, log_domain_mask_t domain, const char *funcname,
 {
   char buf[10024];
   int i,j,k;
-  long txtsize = 0;
-  char *end_of_prefix=NULL;
+  unsigned long txtsize = 0;
   if((severity<=lseverity)&&((!fltlocked)||(!logfilter)))
   {
-	end_of_prefix = format_msg(buf, sizeof(buf), domain, severity, funcname, format, ap);
+	format_msg(buf, sizeof(buf), domain, severity, funcname, format, ap);
 	txtsize=strlen(buf);
   	if((logfilter&&(hfile||hdialog))&&(!fltlocked))
 	{

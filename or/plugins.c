@@ -70,7 +70,7 @@ int __stdcall plugin_get_connections(HANDLE hPlugin,connection_info_t *buffer,in
 			buffer[i].socks_final_address = NULL;
 		}
 		buffer[i].reserved = 0;
-		buffer[i].lParam = (conn_param==-1)?NULL:&conn->lParam[conn_param];
+		buffer[i].lParam = ((conn_param==-1)?NULL:(LPARAM *)&conn->lParam[conn_param]);
 		i++;
 		if(i >= nCount) return i;
 	});
@@ -276,7 +276,7 @@ int __stdcall plugin_get_configuration_value(HANDLE hPlugin,char *option,char *b
 		if(!plugin_tmp) return 0;
 		char *tmp2;
 		while(answer && i<buffer_size)
-		{	tmp2=answer->value;
+		{	tmp2=(char *)answer->value;
 			if(!strcasecmpstart(tmp2,plugin_tmp->dll_name))
 			{	tmp2 += strlen(plugin_tmp->dll_name);
 				if(*tmp2==':')
@@ -303,7 +303,7 @@ int __stdcall plugin_get_configuration_value(HANDLE hPlugin,char *option,char *b
 		char *tmp2;
 		while(answer && i<buffer_size)
 		{	config_line_t *next;
-			tmp2=answer->value;
+			tmp2=(char *)answer->value;
 			while(*tmp2 && (i<buffer_size))	buffer[i++]=*tmp2++;
 			if(i<buffer_size)	buffer[i++]=13;
 			if(i<buffer_size)	buffer[i++]=10;
@@ -335,7 +335,7 @@ BOOL __stdcall plugin_set_configuration_value(HANDLE hPlugin,char *option,char *
 		char *tmp2;
 		while(answer)
 		{	next=answer->next;
-			tmp2=answer->value;
+			tmp2=(char *)answer->value;
 			if(!strcasecmpstart(tmp2,plugin_tmp->dll_name))
 			{	tmp2 += strlen(plugin_tmp->dll_name);
 				if(*tmp2==':')
@@ -381,13 +381,13 @@ BOOL __stdcall plugin_set_configuration_value(HANDLE hPlugin,char *option,char *
 			{	answer = tor_malloc_zero(sizeof(config_line_t));
 				get_options()->PluginOptions = answer;
 			}
-			answer->key = tor_strdup("PluginOptions");
+			answer->key = (unsigned char *)tor_strdup("PluginOptions");
 			for(i=0;value[i] && value[i]!=13 && value[i]!=10;i++)	;
 			i += strlen(plugin_tmp->dll_name) + strlen(option) + 4;
 			answer->value = tor_malloc(i);
-			tor_snprintf(answer->value,i,"%s:%s=",plugin_tmp->dll_name,option);
-			j=strlen(answer->value);
-			tmp2=&answer->value[j];
+			tor_snprintf((char *)answer->value,i,"%s:%s=",plugin_tmp->dll_name,option);
+			j=strlen((char *)answer->value);
+			tmp2=(char *)&answer->value[j];
 			i -= j;
 			if(i) i--;
 			for(;i && *value && *value!=13 && *value!=10;i--)
@@ -511,7 +511,7 @@ LPARAM* __stdcall plugin_get_connection_param(HANDLE plugin_instance,DWORD conne
 	DWORD tmpid;
 	SMARTLIST_FOREACH(conns, connection_t *, conn,{
 		tmpid=conn->global_identifier&0xffffffff;
-		if(connection_id==tmpid)	return &conn->lParam[plugin_tmp->connection_param];
+		if(connection_id==tmpid)	return (LPARAM *)&conn->lParam[plugin_tmp->connection_param];
 	});
 	return NULL;
 }
@@ -975,8 +975,8 @@ void set_plugins_config(void)
 	while(plugin_tmp)
 	{	tor_snprintf(plname,1024,"%s %u",plugin_tmp->dll_name,plugin_tmp->rights);
 		*cfg1=tor_malloc_zero(sizeof(config_line_t));
-		(*cfg1)->key = tor_strdup("Plugins");
-		(*cfg1)->value=tor_strdup(plname);
+		(*cfg1)->key = (unsigned char *)tor_strdup("Plugins");
+		(*cfg1)->value=(unsigned char *)tor_strdup(plname);
 		cfg1=&((*cfg1)->next);
 		plugin_tmp=plugin_tmp->next_plugin;
 	}
@@ -1074,7 +1074,7 @@ void add_plugins(or_options_t *options)
 		for(i=0;i<MAX_PATH && (unsigned char)option->value[i]>32;i++)	newPlugin->dll_name[i]=option->value[i];
 		newPlugin->dll_name[i]=0;
 		while(option->value[i]==32) i++;
-		newPlugin->rights=atoi(&option->value[i]);
+		newPlugin->rights=atoi((char *)&option->value[i]);
 		if(plugins)
 		{	plugin_tmp=plugins;
 			while(plugin_tmp->next_plugin)	plugin_tmp=plugin_tmp->next_plugin;
@@ -1282,7 +1282,7 @@ int plugins_connection_add(connection_t *conn)
 {	plugin_info_t *plugin_tmp;
 	for(plugin_tmp=plugins;plugin_tmp;plugin_tmp=plugin_tmp->next_plugin)
 	{	if(plugin_tmp->RegisterConnection && plugin_tmp->rights&PLUGIN_RIGHT__CAN_TRANSLATE_CLIENT_TRAFFIC && plugin_tmp->rights&PLUGIN_RIGHT__CAN_CREATE_OR_CONNECTIONS)
-		{	if((plugin_tmp->RegisterConnection)(conn->global_identifier&0xffffffff,conn->type,conn->address,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param])==0)	return -1;
+		{	if((plugin_tmp->RegisterConnection)(conn->global_identifier&0xffffffff,conn->type,conn->address,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param])==0)	return -1;
 		}
 	}
 	return 0;
@@ -1292,7 +1292,7 @@ int plugins_connection_remove(connection_t *conn)
 {	plugin_info_t *plugin_tmp;
 	for(plugin_tmp=plugins;plugin_tmp;plugin_tmp=plugin_tmp->next_plugin)
 	{	if(plugin_tmp->UnregisterConnection && plugin_tmp->rights&PLUGIN_RIGHT__CAN_TRANSLATE_CLIENT_TRAFFIC && plugin_tmp->rights&PLUGIN_RIGHT__CAN_CREATE_OR_CONNECTIONS)
-		{	if((plugin_tmp->UnregisterConnection)(conn->global_identifier&0xffffffff,conn->type,conn->address,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param])==0)	return -1;
+		{	if((plugin_tmp->UnregisterConnection)(conn->global_identifier&0xffffffff,conn->type,conn->address,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param])==0)	return -1;
 		}
 	}
 	return 0;
@@ -1341,13 +1341,13 @@ void plugins_read_event(connection_t *conn,size_t before)
 				data_size = dest->datalen-tmppos;
 				capacity = (dest->mem + dest->memlen) - (dest->data + dest->datalen) + data_size;
 				if(conn->hs_plugin&&plugin_tmp->HiddenService_HandleRead && plugin_tmp->rights&PLUGIN_RIGHT__HIDDEN_SERVICE_PROVIDER && (plugin_tmp->hDll==conn->hPlugin))
-				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,dest->data+tmppos,data_size,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,dest->data+tmppos,data_size,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 					if(r==0)
 					{	close_connection(conn);
 						return;
 					}
 				}
-				r = (plugin_tmp->ConnectionRead)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,dest->data+tmppos,&data_size,capacity,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				r = (plugin_tmp->ConnectionRead)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,dest->data+tmppos,&data_size,capacity,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 				data_size -= dest->datalen-tmppos;
 				buf->datalen += data_size;
 				dest->datalen += data_size;
@@ -1369,13 +1369,13 @@ void plugins_read_event(connection_t *conn,size_t before)
 			{	chunk_repack(dest);
 				capacity = (dest->mem + dest->memlen) - (dest->data + dest->datalen) + dest->datalen;
 				if(conn->hs_plugin&&plugin_tmp->HiddenService_HandleRead && plugin_tmp->rights&PLUGIN_RIGHT__HIDDEN_SERVICE_PROVIDER && (plugin_tmp->hDll==conn->hPlugin))
-				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,next_dest->data,next_dest->datalen,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,next_dest->data,next_dest->datalen,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 					if(r==0)
 					{	close_connection(conn);
 						return;
 					}
 				}
-				r = (plugin_tmp->ConnectionRead)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,next_dest->data,&next_dest->datalen,capacity,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				r = (plugin_tmp->ConnectionRead)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,next_dest->data,(int *)&next_dest->datalen,capacity,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 				if(r==-1)
 				{	close_connection(conn);
 					return;
@@ -1422,13 +1422,13 @@ void plugins_write_event(connection_t *conn,size_t before)
 				data_size = dest->datalen-tmppos;
 				capacity = (dest->mem + dest->memlen) - (dest->data + dest->datalen) + data_size;
 				if(conn->hs_plugin&&plugin_tmp->HiddenService_HandleRead && (plugin_tmp->rights&PLUGIN_RIGHT__HIDDEN_SERVICE_PROVIDER) && (plugin_tmp->hDll==conn->hPlugin))
-				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,dest->data+tmppos,data_size,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,dest->data+tmppos,data_size,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 					if(r==0)
 					{	close_connection(conn);
 						return;
 					}
 				}
-				else if(plugin_tmp->ConnectionWrite && plugin_tmp->rights&PLUGIN_RIGHT__CAN_TRANSLATE_CLIENT_TRAFFIC) r = (plugin_tmp->ConnectionWrite)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,dest->data+tmppos,&data_size,capacity,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				else if(plugin_tmp->ConnectionWrite && plugin_tmp->rights&PLUGIN_RIGHT__CAN_TRANSLATE_CLIENT_TRAFFIC) r = (plugin_tmp->ConnectionWrite)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,dest->data+tmppos,&data_size,capacity,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 				else continue;
 				data_size -= dest->datalen-tmppos;
 				buf->datalen += data_size;
@@ -1451,13 +1451,13 @@ void plugins_write_event(connection_t *conn,size_t before)
 			{	chunk_repack(dest);
 				capacity = (dest->mem + dest->memlen) - (dest->data + dest->datalen) + dest->datalen;
 				if(conn->hs_plugin&&plugin_tmp->HiddenService_HandleRead && (plugin_tmp->rights&PLUGIN_RIGHT__HIDDEN_SERVICE_PROVIDER) && (plugin_tmp->hDll==conn->hPlugin))
-				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,next_dest->data,next_dest->datalen,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				{	r = (plugin_tmp->HiddenService_HandleRead)(conn->address,conn->global_identifier&0xffffffff,next_dest->data,next_dest->datalen,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 					if(r==0)
 					{	close_connection(conn);
 						return;
 					}
 				}
-				else if(plugin_tmp->ConnectionWrite && plugin_tmp->rights&PLUGIN_RIGHT__CAN_TRANSLATE_CLIENT_TRAFFIC) r = (plugin_tmp->ConnectionWrite)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,next_dest->data,&next_dest->datalen,capacity,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				else if(plugin_tmp->ConnectionWrite && plugin_tmp->rights&PLUGIN_RIGHT__CAN_TRANSLATE_CLIENT_TRAFFIC) r = (plugin_tmp->ConnectionWrite)(conn->global_identifier&0xffffffff,conn->type,conn->state,conn->address,next_dest->data,(int *)&next_dest->datalen,capacity,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 				else continue;
 				if(r==-1)
 				{	close_connection(conn);
@@ -1526,7 +1526,7 @@ int plugins_remap(edge_connection_t *conn,char **address,char *original_address,
 			{	addrtmp = tor_malloc(1024);
 				tor_snprintf(addrtmp,1023,"%s",*address);
 			}
-			if(conn)	r=(plugin_tmp->TranslateAddress)(TO_CONN(conn)->global_identifier&0xffffffff,original_address,addrtmp,(plugin_tmp->connection_param==-1)?NULL:&TO_CONN(conn)->lParam[plugin_tmp->connection_param],is_error);
+			if(conn)	r=(plugin_tmp->TranslateAddress)(TO_CONN(conn)->global_identifier&0xffffffff,original_address,addrtmp,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&TO_CONN(conn)->lParam[plugin_tmp->connection_param],is_error);
 			else		r=(plugin_tmp->TranslateAddress)(0,original_address,addrtmp,NULL,is_error);
 			if(!r)
 			{	if(addrtmp)	tor_free(addrtmp);
@@ -1583,7 +1583,7 @@ int plugin_notify_service(rend_service_t *service,int added,connection_t *conn,i
 		{	if(plugin_tmp->HiddenService_NotifyService)
 			{	tor_snprintf(buf,sizeof(buf),"%s.onion",service->service_id);
 				if(conn)
-				{	result=(plugin_tmp->HiddenService_NotifyService)(added,buf,port,conn->global_identifier&0xffffffff,(plugin_tmp->connection_param==-1)?NULL:&conn->lParam[plugin_tmp->connection_param]);
+				{	result=(plugin_tmp->HiddenService_NotifyService)(added,buf,port,conn->global_identifier&0xffffffff,(plugin_tmp->connection_param==-1)?NULL:(LPARAM *)&conn->lParam[plugin_tmp->connection_param]);
 					conn->hs_plugin=1;
 					conn->port=port;
 					if(conn->address)	tor_free(conn->address);

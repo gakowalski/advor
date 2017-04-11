@@ -543,7 +543,7 @@ void unload_languages(void)
 
 int load_lng(char *file)
 {	BOOL* usedDefault=NULL;
-	unsigned char *loadedFile=NULL,*tmpFile=NULL,*toFree=NULL,*lastLine=NULL;
+	char *loadedFile=NULL,*tmpFile=NULL,*toFree=NULL,*lastLine=NULL;
 	int fsize,fsize1=0;
 	int newLine=1,isComment=0,langIdx=0;
 	int numDefs=0;
@@ -646,7 +646,7 @@ int load_lng(char *file)
 extern char	fullpath[MAX_PATH+1];
 lang_str_info *plugin_load_lng(char *dllname,int *maxdefs,char *language,char **lngfile)
 {	BOOL* usedDefault=NULL;
-	unsigned char *loadedFile=NULL,*tmpFile=NULL,*lastLine=NULL;
+	char *loadedFile=NULL,*tmpFile=NULL,*lastLine=NULL;
 	int fsize,fsize1=0;
 	int newLine=1,isComment=0,langIdx=0;
 	int numDefs=0;

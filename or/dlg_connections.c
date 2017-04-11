@@ -256,8 +256,8 @@ int __stdcall dlgConnections(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 				{	if(j!=i)
 					{	tmp1[i]=0;
 						*cfg1=tor_malloc_zero(sizeof(config_line_t));
-						(*cfg1)->key = tor_strdup("ReachableAddresses");
-						(*cfg1)->value=tor_strdup(&tmp1[j]);
+						(*cfg1)->key = (unsigned char *)tor_strdup("ReachableAddresses");
+						(*cfg1)->value=(unsigned char *)tor_strdup(&tmp1[j]);
 						cfg1=&((*cfg1)->next);
 					}
 					j=i+1;

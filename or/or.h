@@ -12,7 +12,7 @@
 #ifndef _TOR_OR_H
 #define _TOR_OR_H
 #define int3 asm(".intel_syntax noprefix\nint 3\n.att_syntax prefix");
-#define advtor_ver "0.3.0.27"
+#define advtor_ver "0.3.1.0"
 #define ADVTOR_DW_VER 0x00030014
 #define FAKE_TOR_VER "0.2.2.39"
 #define MAX_PLUGIN_CONNECTION_PARAMS 100
@@ -32,7 +32,9 @@
 
 #ifdef MS_WINDOWS
 #define WIN32_WINNT 0x400
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x400
+#endif
 #define WIN32_LEAN_AND_MEAN
 #endif
 
@@ -1257,7 +1259,7 @@ typedef struct edge_connection_t {
    * a result of the TrackHostExit, and the value decrements every time
    * we fail to complete a circuit to our chosen exit -- if it reaches
    * zero, abandon the associated mapaddress. */
-  unsigned int chosen_exit_retries:3;
+  unsigned int chosen_exit_retries;
 
   /** True iff this is an AP connection that came from a transparent or
    * NATd connection */

@@ -46,7 +46,7 @@ BOOL is_banned(const char *_addr)
 {	if(tmpOptions->BannedHosts)
 	{	config_line_t *cfg;
 		for(cfg=tmpOptions->BannedHosts;cfg;cfg=cfg->next)
-		{	if(!stricmp(cfg->value,_addr)) return 1;
+		{	if(!stricmp((char *)cfg->value,_addr)) return 1;
 		}
 	}
 	return 0;
@@ -69,14 +69,14 @@ void dlgProxy_banSocksAddress(char *socksAddress)
 		{	for(cfg=tmpOptions->BannedHosts;cfg->next;cfg=cfg->next)	;
 			cfg->next = tor_malloc_zero(sizeof(config_line_t));
 			cfg = cfg->next;
-			cfg->key = tor_strdup("BannedHosts");
-			cfg->value = tor_strdup(socksAddress);
+			cfg->key = (unsigned char *)tor_strdup("BannedHosts");
+			cfg->value = (unsigned char *)tor_strdup(socksAddress);
 		}
 		else
 		{	tmpOptions->BannedHosts = tor_malloc_zero(sizeof(config_line_t));
 			cfg = tmpOptions->BannedHosts;
-			cfg->key = tor_strdup("BannedHosts");
-			cfg->value = tor_strdup(socksAddress);
+			cfg->key = (unsigned char *)tor_strdup("BannedHosts");
+			cfg->value = (unsigned char *)tor_strdup(socksAddress);
 		}
 		tor_snprintf(tmp,255,get_lang_str(LANG_MB_BAN_ADDED),&socksAddress[0]);
 		LangMessageBox(hMainDialog,tmp,LANG_LB_CONNECTIONS,MB_OK);
@@ -110,14 +110,14 @@ void dlgProxy_banDebugAddress(char *strban)
 			{	for(cfg=tmpOptions->BannedHosts;cfg->next;cfg=cfg->next)	;
 				cfg->next = tor_malloc_zero(sizeof(config_line_t));
 				cfg = cfg->next;
-				cfg->key = tor_strdup("BannedHosts");
-				cfg->value = tor_strdup(&strban[i]);
+				cfg->key = (unsigned char *)tor_strdup("BannedHosts");
+				cfg->value = (unsigned char *)tor_strdup(&strban[i]);
 			}
 			else
 			{	tmpOptions->BannedHosts = tor_malloc_zero(sizeof(config_line_t));
 				cfg = tmpOptions->BannedHosts;
-				cfg->key = tor_strdup("BannedHosts");
-				cfg->value = tor_strdup(&strban[i]);
+				cfg->key = (unsigned char *)tor_strdup("BannedHosts");
+				cfg->value = (unsigned char *)tor_strdup(&strban[i]);
 			}
 		}
 		else
@@ -156,7 +156,7 @@ int __stdcall dlgProxy(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 			EnableWindow(GetDlgItem(hDlg,13014),0);EnableWindow(GetDlgItem(hDlg,13015),0);EnableWindow(GetDlgItem(hDlg,13001),0);EnableWindow(GetDlgItem(hDlg,13016),0);EnableWindow(GetDlgItem(hDlg,13002),0);
 			EnableWindow(GetDlgItem(hMainDialog,9),0);EnableWindow(GetDlgItem(hMainDialog,10),0);
 		}
-		if(tmpOptions->SocksListenAddress)	SetDlgItemText(hDlg,13101,tmpOptions->SocksListenAddress->value);
+		if(tmpOptions->SocksListenAddress)	SetDlgItemText(hDlg,13101,(LPCSTR)tmpOptions->SocksListenAddress->value);
 		else SetDlgItemText(hDlg,13101,"127.0.0.1");
 		if(tmpOptions->SocksAuthenticator!=NULL)	SetDlgItemText(hDlg,13102,tmpOptions->SocksAuthenticator);
 		HANDLE hIcon1=LoadIcon(hInstance,MAKEINTRESOURCE(9));
@@ -240,7 +240,7 @@ int __stdcall dlgBannedAddresses(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam
 		if(tmpOptions->BannedHosts!=NULL)
 		{	int k = 0;
 			for(cfg=tmpOptions->BannedHosts;cfg;cfg=cfg->next)
-				k += strlen(cfg->value) + 2;
+				k += strlen((char *)cfg->value) + 2;
 			tmp1=tor_malloc(k+1024);i=0;tmp2=tmp1;
 			for(cfg=tmpOptions->BannedHosts;cfg;cfg=cfg->next)
 			{	for(j=0;;i++,j++)

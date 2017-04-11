@@ -225,8 +225,8 @@ void getEditData(HWND hDlg,int editBox,config_line_t **option,const char *value)
 		{	if(j!=i)
 			{	tmp1[i]=0;
 				*cfg1=tor_malloc_zero(sizeof(config_line_t));
-				(*cfg1)->key = tor_strdup(value);
-				(*cfg1)->value=tor_strdup(&tmp1[j]);
+				(*cfg1)->key = (unsigned char *)tor_strdup(value);
+				(*cfg1)->value=(unsigned char *)tor_strdup(&tmp1[j]);
 				cfg1=&((*cfg1)->next);
 			}
 			j=i+1;
@@ -257,8 +257,8 @@ void getEditData1(HWND hDlg,int editBox,config_line_t **option,const char *value
 		{	if(j!=i)
 			{	tmp1[i]=0;
 				*cfg1=tor_malloc_zero(sizeof(config_line_t));
-				(*cfg1)->key = tor_strdup(value);
-				(*cfg1)->value=tor_strdup(&tmp1[j]);
+				(*cfg1)->key = (unsigned char *)tor_strdup(value);
+				(*cfg1)->value=(unsigned char *)tor_strdup(&tmp1[j]);
 				cfg1=&((*cfg1)->next);
 			}
 			j=i+1;
@@ -274,7 +274,7 @@ void setEditData(HWND hDlg,int editBox,config_line_t *option)
 	{	config_line_t *cfg;
 		i = 1024;
 		for(cfg=option;cfg;cfg=cfg->next)
-			i += strlen(cfg->value) + 2;
+			i += strlen((char *)cfg->value) + 2;
 		char *tmp1=tor_malloc(i),*tmp2;
 		if(i > 29999)	SendDlgItemMessage(hDlg,editBox,EM_LIMITTEXT,i+32768,0);
 		tmp2=tmp1;

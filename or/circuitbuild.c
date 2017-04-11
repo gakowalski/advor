@@ -371,9 +371,9 @@ void circuit_build_times_update_state(circuit_build_times_t *cbt,or_state_t *sta
 	for(i = 0; i < nbins; i++)	// compress the histogram by skipping the blanks
 	{	if (histogram[i] == 0) continue;
 		*next = line = tor_malloc_zero(sizeof(config_line_t));
-		line->key = tor_strdup("CircuitBuildTimeBin");
+		line->key = (unsigned char *)tor_strdup("CircuitBuildTimeBin");
 		line->value = tor_malloc(25);
-		tor_snprintf(line->value, 25, "%d %d",CBT_BIN_TO_MS(i), histogram[i]);
+		tor_snprintf((char *)line->value, 25, "%d %d",CBT_BIN_TO_MS(i), histogram[i]);
 		next = &(line->next);
 	}
 	if(!unit_tests)
@@ -443,7 +443,7 @@ int circuit_build_times_parse_state(circuit_build_times_t *cbt,or_state_t *state
 	loaded_times = tor_malloc_zero(sizeof(build_time_t)*state->TotalBuildTimes);
 	for(line = state->BuildtimeHistogram; line; line = line->next)
 	{	smartlist_t *args = smartlist_create();
-		smartlist_split_string(args,line->value," ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK,0);
+		smartlist_split_string(args,(const char *)line->value," ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK,0);
 		if(smartlist_len(args) < 2)
 		{	log_warn(LD_GENERAL,get_lang_str(LANG_LOG_CIRCUITBUILD_PARSE_ERROR_1));
 			err = -1;
@@ -2976,7 +2976,6 @@ void
 entry_guards_compute_status(or_options_t *options, time_t now)
 {
   int changed = 0;
-  int severity = LOG_DEBUG;
   digestmap_t *reasons;
   if (! entry_guards)
     return;
@@ -3001,8 +3000,6 @@ entry_guards_compute_status(or_options_t *options, time_t now)
 
   if (remove_dead_entry_guards(now))
     changed = 1;
-
-  severity = changed ? LOG_DEBUG : LOG_INFO;
 
   if (changed) {
     SMARTLIST_FOREACH_BEGIN(entry_guards, entry_guard_t *, entry) {
@@ -3332,19 +3329,18 @@ entry_guards_parse_state(or_state_t *state, int set, char **msg)
   smartlist_t *new_entry_guards = smartlist_create();
   config_line_t *line;
   time_t now = get_time(NULL);
-  const char *state_version = state->TorVersion;
+  const unsigned char *state_version = state->TorVersion;
   digestmap_t *added_by = digestmap_new();
 
   *msg = NULL;
   for (line = state->EntryGuards; line; line = line->next) {
-    if (!strcasecmp(line->key, "EntryGuard")) {
+    if (!strcasecmp((const char *)line->key, "EntryGuard")) {
       smartlist_t *args = smartlist_create();
       node = tor_malloc_zero(sizeof(entry_guard_t));
       /* all entry guards on disk have been contacted */
       node->made_contact = 1;
       smartlist_add(new_entry_guards, node);
-      smartlist_split_string(args, line->value, " ",
-                             SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
+      smartlist_split_string(args, (const char *)line->value, " ",SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
       if (smartlist_len(args)<2) {
         *msg = tor_strdup("Unable to parse entry nodes: "
                           "Too few arguments to EntryGuard");
@@ -3363,8 +3359,8 @@ entry_guards_parse_state(or_state_t *state, int set, char **msg)
       smartlist_free(args);
       if (*msg)
         break;
-    } else if (!strcasecmp(line->key, "EntryGuardDownSince") ||
-               !strcasecmp(line->key, "EntryGuardUnlistedSince")) {
+    } else if (!strcasecmp((const char *)line->key, "EntryGuardDownSince") ||
+               !strcasecmp((const char *)line->key, "EntryGuardUnlistedSince")) {
       time_t when;
       time_t last_try = 0;
       if (!node) {
@@ -3372,7 +3368,7 @@ entry_guards_parse_state(or_state_t *state, int set, char **msg)
                "EntryGuardDownSince/UnlistedSince without EntryGuard");
         break;
       }
-      if (parse_iso_time(line->value, &when)<0) {
+      if (parse_iso_time((const char *)line->value, &when)<0) {
         *msg = tor_strdup("Unable to parse entry nodes: "
                           "Bad time in EntryGuardDownSince/UnlistedSince");
         break;
@@ -3382,31 +3378,31 @@ entry_guards_parse_state(or_state_t *state, int set, char **msg)
          * up with timeouts that aren't allowed to happen for years. */
         continue;
       }
-      if (strlen(line->value) >= ISO_TIME_LEN+ISO_TIME_LEN+1) {
+      if (strlen((char *)line->value) >= ISO_TIME_LEN+ISO_TIME_LEN+1) {
         /* ignore failure */
-        (void) parse_iso_time(line->value+ISO_TIME_LEN+1, &last_try);
+        (void) parse_iso_time((char *)line->value+ISO_TIME_LEN+1, &last_try);
       }
-      if (!strcasecmp(line->key, "EntryGuardDownSince")) {
+      if (!strcasecmp((char *)line->key, "EntryGuardDownSince")) {
         node->unreachable_since = when;
         node->last_attempted = last_try;
       } else {
         node->bad_since = when;
       }
-    } else if (!strcasecmp(line->key, "EntryGuardAddedBy")) {
+    } else if (!strcasecmp((char *)line->key, "EntryGuardAddedBy")) {
       char d[DIGEST_LEN];
       /* format is digest version date */
-      if (strlen(line->value) < HEX_DIGEST_LEN+1+1+1+ISO_TIME_LEN) {
+      if (strlen((char *)line->value) < HEX_DIGEST_LEN+1+1+1+ISO_TIME_LEN) {
         log_warn(LD_BUG,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRYGUARDADDEDBY_TOO_SHORT));
         continue;
       }
-      if (base16_decode(d, sizeof(d), line->value, HEX_DIGEST_LEN)<0 ||
+      if (base16_decode(d, sizeof(d), (char *)line->value, HEX_DIGEST_LEN)<0 ||
           line->value[HEX_DIGEST_LEN] != ' ') {
-	char *esc_l = esc_for_log(line->value);
+	char *esc_l = esc_for_log((char *)line->value);
         log_warn(LD_BUG,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRYGUARDADDEDBY_NOT_HEX_DIGEST),esc_l);
 	tor_free(esc_l);
         continue;
       }
-      digestmap_set(added_by, d, tor_strdup(line->value+HEX_DIGEST_LEN+1));
+      digestmap_set(added_by, d, tor_strdup((char *)line->value+HEX_DIGEST_LEN+1));
     } else {
       log_warn(LD_BUG,get_lang_str(LANG_LOG_CIRCUITBUILD_ENTRY_GUARD_UNEXPECTED_KEY),line->key);
     }
@@ -3427,7 +3423,7 @@ entry_guards_parse_state(or_state_t *state, int set, char **msg)
        }
      } else {
        if (state_version) {
-         e->chosen_by_version = tor_strdup(state_version);
+         e->chosen_by_version = tor_strdup((char *)state_version);
          e->chosen_on_date = start_of_month(get_time(NULL));
        }
      }
@@ -3491,28 +3487,28 @@ entry_guards_update_state(or_state_t *state)
       if (!e->made_contact)
         continue; /* don't write this one to disk */
       *next = line = tor_malloc_zero(sizeof(config_line_t));
-      line->key = tor_strdup("EntryGuard");
+      line->key = (unsigned char *)tor_strdup("EntryGuard");
       line->value = tor_malloc(HEX_DIGEST_LEN+MAX_NICKNAME_LEN+2);
       base16_encode(dbuf, sizeof(dbuf), e->identity, DIGEST_LEN);
-      tor_snprintf(line->value,HEX_DIGEST_LEN+MAX_NICKNAME_LEN+2,
+      tor_snprintf((char *)line->value,HEX_DIGEST_LEN+MAX_NICKNAME_LEN+2,
                    "%s %s", e->nickname, dbuf);
       next = &(line->next);
       if (e->unreachable_since) {
         *next = line = tor_malloc_zero(sizeof(config_line_t));
-        line->key = tor_strdup("EntryGuardDownSince");
+        line->key = (unsigned char *)tor_strdup("EntryGuardDownSince");
         line->value = tor_malloc(ISO_TIME_LEN+1+ISO_TIME_LEN+1);
-        format_iso_time(line->value, e->unreachable_since);
+        format_iso_time((char *)line->value, e->unreachable_since);
         if (e->last_attempted) {
           line->value[ISO_TIME_LEN] = ' ';
-          format_iso_time(line->value+ISO_TIME_LEN+1, e->last_attempted);
+          format_iso_time((char *)line->value+ISO_TIME_LEN+1, e->last_attempted);
         }
         next = &(line->next);
       }
       if (e->bad_since) {
         *next = line = tor_malloc_zero(sizeof(config_line_t));
-        line->key = tor_strdup("EntryGuardUnlistedSince");
+        line->key = (unsigned char *)tor_strdup("EntryGuardUnlistedSince");
         line->value = tor_malloc(ISO_TIME_LEN+1);
-        format_iso_time(line->value, e->bad_since);
+        format_iso_time((char *)line->value, e->bad_since);
         next = &(line->next);
       }
       if (e->chosen_on_date && e->chosen_by_version &&
@@ -3521,13 +3517,13 @@ entry_guards_update_state(or_state_t *state)
         char t[ISO_TIME_LEN+1];
         size_t val_len;
         *next = line = tor_malloc_zero(sizeof(config_line_t));
-        line->key = tor_strdup("EntryGuardAddedBy");
+        line->key = (unsigned char *)tor_strdup("EntryGuardAddedBy");
         val_len = (HEX_DIGEST_LEN+1+strlen(e->chosen_by_version)
                    +1+ISO_TIME_LEN+1);
         line->value = tor_malloc(val_len);
         base16_encode(d, sizeof(d), e->identity, DIGEST_LEN);
         format_iso_time(t, e->chosen_on_date);
-        tor_snprintf(line->value, val_len, "%s %s %s",
+        tor_snprintf((char *)line->value, val_len, "%s %s %s",
                      d, e->chosen_by_version, t);
         next = &(line->next);
       }

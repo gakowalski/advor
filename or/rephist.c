@@ -853,7 +853,7 @@ rep_hist_format_router_status(or_history_t *hist, time_t now)
   double wfu;
   double mtbf;
   int up = 0, down = 0;
-  unsigned char *cp = NULL;
+  char *cp = NULL;
 
   if (hist->start_of_run) {
     format_iso_time(sor_buf, hist->start_of_run);
@@ -866,7 +866,7 @@ rep_hist_format_router_status(or_history_t *hist, time_t now)
 
   wfu = get_weighted_fractional_uptime(hist, now);
   mtbf = get_stability(hist, now);
-  tor_asprintf(&cp,
+  tor_asprintf((unsigned char **)&cp,
                "%s%s%s"
                "%s%s%s"
                "wfu %0.3lf\n"
@@ -2053,7 +2053,7 @@ rep_hist_format_exit_stats(time_t now)
   smartlist_t *written_strings, *read_strings, *streams_strings;
   char *written_string, *read_string, *streams_string;
   char t[ISO_TIME_LEN+1];
-  unsigned char *result;
+  char *result;
 
   if (!start_of_exit_stats_interval)
     return NULL; /* Not initialized. */
@@ -2184,7 +2184,7 @@ rep_hist_format_exit_stats(time_t now)
 
   /* Put everything together. */
   format_iso_time(t, now);
-  tor_asprintf(&result, "exit-stats-end %s (%d s)\n"
+  tor_asprintf((unsigned char **)&result, "exit-stats-end %s (%d s)\n"
                "exit-kibibytes-written %s\n"
                "exit-kibibytes-read %s\n"
                "exit-streams-opened %s\n",
@@ -2379,7 +2379,7 @@ time_t rep_hist_buffer_stats_write(time_t now)
 			if(open_file)
 			{	format_iso_time(written, now);
 				tor_asprintf(&str,"cell-stats-end %s (%d s)\n", written,(unsigned) (now - start_of_buffer_stats_interval));
-				write_string_to_file(open_file,str);tor_free(str);
+				write_string_to_file(open_file,(char *)str);tor_free(str);
 				for(i = 0; i < SHARES; i++)
 				{	tor_asprintf(&buf,"%d", !circs_in_share[i] ? 0 : processed_cells[i] / circs_in_share[i]);
 					smartlist_add(str_build, buf);
@@ -2387,7 +2387,7 @@ time_t rep_hist_buffer_stats_write(time_t now)
 				char *str1 = smartlist_join_strings(str_build, ",", 0, NULL);
 				tor_asprintf(&str,"cell-processed-cells %s\n", str1);
 				tor_free(str1);
-				write_string_to_file(open_file,str);tor_free(str);
+				write_string_to_file(open_file,(char *)str);tor_free(str);
 				SMARTLIST_FOREACH(str_build, char *, c, tor_free(c));
 				smartlist_clear(str_build);
 				for(i = 0; i < SHARES; i++)
@@ -2397,7 +2397,7 @@ time_t rep_hist_buffer_stats_write(time_t now)
 				str1 = smartlist_join_strings(str_build, ",", 0, NULL);
 				tor_asprintf(&str,"cell-queued-cells %s\n",str1);
 				tor_free(str1);
-				write_string_to_file(open_file,str);tor_free(str);
+				write_string_to_file(open_file,(char *)str);tor_free(str);
 				SMARTLIST_FOREACH(str_build, char *, c, tor_free(c));
 				smartlist_clear(str_build);
 				for(i = 0; i < SHARES; i++)
@@ -2407,12 +2407,12 @@ time_t rep_hist_buffer_stats_write(time_t now)
 				str1 = smartlist_join_strings(str_build, ",", 0, NULL);
 				tor_asprintf(&str,"cell-time-in-queue %s\n",str1);
 				tor_free(str1);
-				write_string_to_file(open_file,str);tor_free(str);
+				write_string_to_file(open_file,(char *)str);tor_free(str);
 				SMARTLIST_FOREACH(str_build, char *, c, tor_free(c));
 				smartlist_free(str_build);
 				str_build = NULL;
 				tor_asprintf(&str,"cell-circuits-per-decile %d\n",(number_of_circuits + SHARES - 1) / SHARES);
-				write_string_to_file(open_file,str);tor_free(str);
+				write_string_to_file(open_file,(char *)str);tor_free(str);
 				start_of_buffer_stats_interval = now;
 				finish_writing_to_file(open_file,1);
 				open_file = NULL;

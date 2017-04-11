@@ -243,7 +243,7 @@ dirserv_load_fingerprint_file(void)
 
   for (list=front; list; list=list->next) {
     char digest_tmp[DIGEST_LEN];
-    nickname = list->key; fingerprint = list->value;
+    nickname = (char *)list->key; fingerprint = (char *)list->value;
     if (strlen(nickname) > MAX_NICKNAME_LEN) {
       log_notice(LD_CONFIG,get_lang_str(LANG_LOG_DIRSERV_FINGERPRINT_NICKNAME_TOO_LONG),nickname);
       continue;
@@ -972,7 +972,7 @@ format_versions_list(config_line_t *ln)
   char *result;
   versions = smartlist_create();
   for ( ; ln; ln = ln->next) {
-    smartlist_split_string(versions, ln->value, ",",
+    smartlist_split_string(versions, (char *)ln->value, ",",
                            SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 0);
   }
   sort_version_list(versions, 1);

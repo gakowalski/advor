@@ -1173,7 +1173,7 @@ void replace_entry(HWND hDlg,routerinfo_t *r)
 
 void replace_exit(HWND hDlg,routerinfo_t *r)
 {	char *nodelist=tor_malloc(32768),*s1,*s2;
-	char *lastnode=NULL,*lastcomm=NULL,*prevcomm=NULL;;
+	char *lastnode=NULL,*prevcomm=NULL;;
 	s1=nodelist;
 	GetDlgItemText(hDlg,100,s1,32600);
 	int max_length=GetDlgItemInt(hDlg,101,NULL,0);
@@ -1190,7 +1190,6 @@ void replace_exit(HWND hDlg,routerinfo_t *r)
 		}
 		if(*s1)
 		{	lastnode=s1;
-			lastcomm=prevcomm;
 			while(*s1!=0 && *s1!=13 && *s1!=10)	s1++;
 			while(*s1==13 || *s1==10) s1++;
 			numnodes++;
@@ -1220,7 +1219,7 @@ void replace_exit(HWND hDlg,routerinfo_t *r)
 
 void replace_middle(HWND hDlg,routerinfo_t *r)
 {	char *nodelist=tor_malloc(32768),*s1,*s2;
-	char *lastnode=NULL,*lastcomm=NULL,*prevcomm=NULL;;
+	char *lastnode=NULL,*prevcomm=NULL;;
 	s1=nodelist;
 	GetDlgItemText(hDlg,100,s1,32600);
 	int max_length=GetDlgItemInt(hDlg,101,NULL,0);
@@ -1237,7 +1236,6 @@ void replace_middle(HWND hDlg,routerinfo_t *r)
 		}
 		if(*s1)
 		{	lastnode=s1;
-			lastcomm=prevcomm;
 			while(*s1!=0 && *s1!=13 && *s1!=10)	s1++;
 			while(*s1==13 || *s1==10) s1++;
 			numnodes++;
@@ -1260,7 +1258,7 @@ void replace_middle(HWND hDlg,routerinfo_t *r)
 	{	s1=s2;
 		char *s3;
 		if(!lastnode)	lastnode=s1;
-		s3=lastnode;lastnode=NULL;lastcomm=NULL;
+		s3=lastnode;lastnode=NULL;
 		while(*s1 && s1<s3)
 		{	while(*s1 && s1<s3)
 			{	while((*s1<=32)&&(*s1!=0))	s1++;
@@ -1272,7 +1270,6 @@ void replace_middle(HWND hDlg,routerinfo_t *r)
 			}
 			if(*s1 && s1<s3)
 			{	lastnode=s1;
-				lastcomm=prevcomm;
 				while(*s1!=0 && *s1!=13 && *s1!=10)	s1++;
 				while(*s1==13 || *s1==10) s1++;
 			}

@@ -190,9 +190,9 @@ int __stdcall dlgSystem(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		SetDlgItemText(hDlg,11100,tmpOptions->SelectedTorVer);
 		if(tmpOptions->ControlPort){ CheckDlgButton(hDlg,11405,BST_CHECKED);SetDlgItemInt(hDlg,11101,tmpOptions->ControlPort,0);}
 		else{	EnableWindow(GetDlgItem(hDlg,11101),0);EnableWindow(GetDlgItem(hDlg,11012),0);EnableWindow(GetDlgItem(hDlg,11102),0);EnableWindow(GetDlgItem(hDlg,11406),0);EnableWindow(GetDlgItem(hDlg,11103),0);}
-		if(tmpOptions->ControlListenAddress)	SetDlgItemText(hDlg,11102,tmpOptions->ControlListenAddress->value);
+		if(tmpOptions->ControlListenAddress)	SetDlgItemText(hDlg,11102,(LPCSTR)tmpOptions->ControlListenAddress->value);
 		else SetDlgItemText(hDlg,11102,"127.0.0.1");
-		if(tmpOptions->CookieAuthentication){ CheckDlgButton(hDlg,11406,BST_CHECKED); if(tmpOptions->HashedControlPassword)  SetDlgItemText(hDlg,11103,tmpOptions->HashedControlPassword->value);}
+		if(tmpOptions->CookieAuthentication){ CheckDlgButton(hDlg,11406,BST_CHECKED); if(tmpOptions->HashedControlPassword)  SetDlgItemText(hDlg,11103,(LPCSTR)tmpOptions->HashedControlPassword->value);}
 		else	EnableWindow(GetDlgItem(hDlg,11103),0);
 		if((tmpOptions->HotkeyNewIdentity & 0x800)!=0)	CheckDlgButton(hDlg,11107,BST_CHECKED);
 		if((tmpOptions->HotkeyIntercept & 0x800)!=0)	CheckDlgButton(hDlg,11108,BST_CHECKED);
@@ -305,7 +305,7 @@ int __stdcall dlgSystem(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 				tmp1=tor_malloc(MAX_PATH+1);GetModuleFileName(0,tmp1,MAX_PATH);
 				int tmpsize=strlen(tmp1)+1;
 				if(RegCreateKeyEx(HKEY_CURRENT_USER,runkey,0,(LPTSTR)&voidmsg,REG_OPTION_NON_VOLATILE,KEY_ALL_ACCESS,0,(PHKEY)&hKey,(LPDWORD)tmp2)==ERROR_SUCCESS)
-				{	RegSetValueEx(hKey,valuename,0,REG_SZ,tmp1,tmpsize);
+				{	RegSetValueEx(hKey,valuename,0,REG_SZ,(BYTE *)tmp1,tmpsize);
 					RegCloseKey(hKey);
 				}
 				tor_free(tmp1);
