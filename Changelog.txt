@@ -1,3 +1,10 @@
+2017-04-27 Advanced Onion Router 0.3.1.1
+
+- added support for Unicode command line arguments; main() will use argv[] arguments converted from Unicode to UTF-8
+- corrected some memory allocation problems that could had caused deallocation of invalid memory regions
+- the procedure that searches the memory allocated for xul.dll for a function that can be called to delete cookies from Firefox when changing the identity was removed
+- starting with this version, configuration options used by both 0.3x and 0.4x versions of AdvOR will be saved to AdvOR.ini
+
 2017-04-11 Advanced Onion Router 0.3.1.0
 
 - DirServers was renamed to DirAuthorities, to update the list of directory authorities in older AdvOR.ini files
