@@ -14,6 +14,10 @@
 #define STARTUP_OPTION_START_TOR 1
 #define STARTUP_OPTION_MINIMIZE_AT_STARTUP 2
 #define STARTUP_OPTION_RESIZE_SETTINGS_APPLIED 4
+#define SPLITTER_WIDTH 5
+#define MIN_SPLIT_DELTA 10
+
+typedef void (*SplitterAdjust)(void);
 
 HWND hMainDialog=NULL;
 int isTopMost = 0;
@@ -78,6 +82,13 @@ HWND selWnd=NULL;
 resize_info_t *resize_sel=NULL;
 int startupOption=0;
 POINT point;
+int splitX = -1;
+int spltX0=0;
+HWND hSplitterParent = NULL;
+HWND hSplitter = NULL;
+char spltClassRegged=0;
+const char *spltclass = "Splitter";
+SplitterAdjust spltProc;
 
 HANDLE hLibrary;
 LPFN1 ShowProcesses=NULL,TORUnhook=NULL,SetGetLangStrCallback=NULL,GetProcessChainKey=NULL,RegisterPluginKey=NULL,UnregisterPluginKey=NULL,SetHibernationState=NULL;
@@ -136,6 +147,9 @@ int __stdcall dlgInterceptHelp(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam);
 int __stdcall dlgExit(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam);
 int __stdcall dlgIdentity(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam);
 int __stdcall dlgfunc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam);
+int __stdcall spltproc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam);
+void initSplitter(HWND hParent,int ctrl,SplitterAdjust moveW);
+void splt_resize3(void);
 void dlgProxy_banDebugAddress(char *strban);
 void dlgDebug_logFilterAdd(char *strban);
 void dlgTrackedHosts_trackedHostExitAdd(HWND hDlg,char *newAddr);
@@ -257,7 +271,7 @@ void saveWindowPos(void)
 	tor_snprintf(tmpOptions->WindowPos,100,"%u,%u,%u,%u,%u,%u,%u,%u",isZoomed,(unsigned int)desktopRect.right,(unsigned int)desktopRect.bottom,(unsigned int)lastWindowRect.left,(unsigned int)lastWindowRect.top,(unsigned int)lastWindowRect.right,(unsigned int)lastWindowRect.bottom,(lastSort<0)?((-lastSort) | 0x80):lastSort);
 	if(oldvar)	tor_free(oldvar);
 	oldvar = tmpOptions->GuiPlacement3;
-	tor_asprintf((unsigned char **)&tmpOptions->GuiPlacement3,"%s,-1",tmpOptions->WindowPos);
+	tor_asprintf((unsigned char **)&tmpOptions->GuiPlacement3,"%s,%d",tmpOptions->WindowPos,splitX);
 	if(oldvar)	tor_free(oldvar);
 }
 
@@ -418,6 +432,93 @@ void setNewLanguage(void)
 	plugins_language_change();
 }
 
+void initSplitter(HWND hParent,int ctrl,SplitterAdjust moveW)
+{	HWND hWnd = GetDlgItem(hParent,ctrl);
+	RECT r;
+	POINT pt;
+	spltProc = moveW;
+	GetWindowRect(hWnd,&r);
+	r.right -= r.left;
+	r.bottom -= r.top;
+	pt.x = r.left;
+	pt.y = r.top;
+	ScreenToClient(hParent,&pt);
+	hSplitter = hWnd;
+	hSplitterParent = hParent;
+	DestroyWindow(hWnd);
+	if(!spltClassRegged)
+	{	WNDCLASSEX wndcl;
+		wndcl.cbSize = sizeof(wndcl);
+		wndcl.style = CS_BYTEALIGNWINDOW;
+		wndcl.lpfnWndProc = (WNDPROC)&spltproc;
+		wndcl.cbClsExtra = 0;
+		wndcl.cbWndExtra = 0;
+		wndcl.hInstance = hInstance;
+		wndcl.hIcon = wndcl.hIconSm = NULL;
+		wndcl.hCursor = LoadCursor(NULL,IDC_SIZEWE);
+		wndcl.hbrBackground = (HBRUSH)(COLOR_BTNFACE+1);
+		wndcl.lpszMenuName = NULL;
+		wndcl.lpszClassName = spltclass;
+		RegisterClassEx(&wndcl);
+		spltClassRegged = 1;
+	}
+	hWnd = CreateWindowEx(WS_EX_TOPMOST,spltclass,0,WS_CHILD | WS_VISIBLE,splitX!=-1?splitX:pt.x,0,SPLITTER_WIDTH,r.bottom,hParent,(HMENU)ctrl,hInstance,0);
+	if(splitX!=-1)
+		spltProc();
+}
+
+int __stdcall spltproc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
+{
+	if(uMsg==WM_LBUTTONDOWN)
+	{	spltX0 = LOWORD(lParam);
+		if(spltX0 & 0x8000) spltX0 -= 0x10000;
+		SetCapture(hDlg);
+		return 0;
+	}
+	else if(uMsg==WM_LBUTTONUP)
+	{	ReleaseCapture();
+		return 0;
+	}
+	else if(uMsg==WM_MOUSEMOVE && (wParam & MK_LBUTTON) != 0)
+	{	DWORD i;
+		DWORD delta;
+		i = LOWORD(lParam);
+		if(i & 0x8000)	i -= 0x10000;
+		delta = i - spltX0;
+		if(delta)
+		{	RECT r,r1;
+			GetWindowRect(hDlg,&r);
+			r.bottom -= r.top;
+			POINT pt;
+			pt.x = r.left + delta;
+			pt.y = 0;
+			ScreenToClient(hSplitterParent,&pt);
+			GetWindowRect(hSplitterParent,&r1);
+			if(pt.x > 10 && pt.x+20 < r1.right-r1.left)
+			{
+				splitX = pt.x;
+				MoveWindow(hDlg,pt.x,0,SPLITTER_WIDTH,r.bottom,1);
+				spltProc();
+				BringWindowToTop(hDlg);
+				return 0;
+			}
+		}
+	}
+	return DefWindowProc(hDlg,uMsg,wParam,lParam);
+}
+
+void splt_resize3(void)
+{
+	resizeDialogControls(hMainDialog,resize_main,0,0);
+	resizeChildDialog(hMainDialog,selWnd,resize_sel);
+	if(resize_sel==resize_network_information) recalcGraph();
+	else if(resize_sel==resize_debug)	LangDebugScroll(hDlgDebug);
+	RedrawWindow(hMainDialog,NULL,NULL,RDW_INVALIDATE|RDW_INTERNALPAINT|RDW_UPDATENOW|RDW_ALLCHILDREN|RDW_NOERASE);
+	if(startupOption&STARTUP_OPTION_RESIZE_SETTINGS_APPLIED)
+		saveWindowPos();
+}
+
+
 
 int __stdcall dlgfunc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 {
@@ -427,7 +528,7 @@ int __stdcall dlgfunc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		SetClassLong(hDlg,GCL_STYLE,GetClassLong(hDlg,GCL_STYLE)|CS_HREDRAW|CS_VREDRAW|CS_PARENTDC);
 		if(LangGetLanguage()) changeDialogStrings(hDlg,lang_dlg_main);
 		get_winver();
-		tor_snprintf(newname,200,"%s  %s by Albu Cristian, 2009-2012",exename,advtor_ver);
+		tor_snprintf(newname,200,"%s  %s by Albu Cristian, 2009-2017",exename,advtor_ver);
 		LangSetWindowText(hDlg,newname);
 		hIcon1=LoadIcon(hInstance,MAKEINTRESOURCE(9));
 		SendDlgItemMessage(hDlg,9,BM_SETIMAGE,IMAGE_ICON,(LPARAM)hIcon1);
@@ -527,6 +628,7 @@ int __stdcall dlgfunc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		dlgForceTor_quickStart();
 		dlgStatsRWInit();
 		load_plugins();
+		initSplitter(hDlg,201,&splt_resize3);
 		dlgSystem_RegisterHotKeys();
 		PostMessage(hDlg,WM_SIZE,0,0);
 	}
@@ -741,9 +843,14 @@ int __stdcall dlgfunc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 	else if(uMsg==WM_SIZE)
 	{	if(!IsIconic(hDlg))
 		{	if(!(startupOption&STARTUP_OPTION_RESIZE_SETTINGS_APPLIED))
-			{	if(tmpOptions->WindowPos)
+			{	if(tmpOptions->WindowPos || tmpOptions->GuiPlacement3)
 				{	int j;
-					tor_sscanf(tmpOptions->WindowPos,"%u,%u,%u,%u,%u,%u,%u,%u",&isZoomed,(unsigned int *)&desktopRect.right,(unsigned int *)&desktopRect.bottom,(unsigned int *)&lastWindowRect.left,(unsigned int *)&lastWindowRect.top,(unsigned int *)&lastWindowRect.right,(unsigned int *)&lastWindowRect.bottom,&lastSort);
+					if(tmpOptions->GuiPlacement3)
+						tor_sscanf(tmpOptions->GuiPlacement3,"%u,%u,%u,%u,%u,%u,%u,%u,%u",&isZoomed,(unsigned int *)&desktopRect.right,(unsigned int *)&desktopRect.bottom,(unsigned int *)&lastWindowRect.left,(unsigned int *)&lastWindowRect.top,(unsigned int *)&lastWindowRect.right,(unsigned int *)&lastWindowRect.bottom,&lastSort,&splitX);
+					else
+					{
+						tor_sscanf(tmpOptions->WindowPos,"%u,%u,%u,%u,%u,%u,%u,%u",&isZoomed,(unsigned int *)&desktopRect.right,(unsigned int *)&desktopRect.bottom,(unsigned int *)&lastWindowRect.left,(unsigned int *)&lastWindowRect.top,(unsigned int *)&lastWindowRect.right,(unsigned int *)&lastWindowRect.bottom,&lastSort);
+					}
 					if(((lastSort&0x80)!=0) && lastSort>0)	lastSort = -(lastSort & 0x7f);
 					if(isZoomed)	ShowWindow(hDlg,SW_MAXIMIZE);
 					else
@@ -754,9 +861,11 @@ int __stdcall dlgfunc(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 								MoveWindow(hDlg,lastWindowRect.left,lastWindowRect.top,lastWindowRect.right-lastWindowRect.left,lastWindowRect.bottom-lastWindowRect.top,1);
 						}
 					}
-					char *oldvar = tmpOptions->GuiPlacement3;
-					tmpOptions->GuiPlacement3 = tor_strdup(tmpOptions->WindowPos);
-					if(oldvar)	tor_free(oldvar);
+					if(splitX != -1)
+					{	RECT r;
+						GetWindowRect(GetDlgItem(hDlg,201),&r);
+						MoveWindow(GetDlgItem(hDlg,201),splitX,0,SPLITTER_WIDTH,r.bottom-r.top,1);
+					}
 				}
 				startupOption |= STARTUP_OPTION_RESIZE_SETTINGS_APPLIED;
 			}

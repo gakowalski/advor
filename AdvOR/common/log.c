@@ -36,6 +36,15 @@ HWND hdialog=NULL;
 HANDLE hfile=NULL;
 int lseverity=LOG_WARN;
 char *logfilter=NULL,fltlocked=0;
+smartlist_t *logcache=NULL;
+
+void cache_log(char *str)
+{
+	if(logcache==NULL)
+	{	logcache = smartlist_create();
+	}
+	smartlist_add(logcache,tor_strdup(str));
+}
 
 void setDialog(HWND hDlg)
 {	hdialog=hDlg;
@@ -272,6 +281,9 @@ logv(int severity, log_domain_mask_t domain, const char *funcname,
 	buf[11]='[';
 	if(hdialog!=NULL)	LangReplaceSel(&buf[11],hdialog);
 	else if((!hfile)&&(severity<=LOG_ERR)) MessageBox(0,&buf[11+11],"Error",MB_OK);
+	else
+	{	cache_log(&buf[11]);
+	}
   }
 }
 
@@ -396,6 +408,11 @@ logs_free_all(void)
     log_free(victim);
   }
   tor_free(appname);
+  if(logcache)
+  {
+    tor_free(logcache);
+    logcache = NULL;
+  }
 }
 
 /** Helper: release system resources (but not memory) held by a single

@@ -1,3 +1,11 @@
+2017-05-05 Advanced Onion Router 0.3.1.2
+
+- corrected some plugin calls that were using different calling conventions than expected when compiled with newest versions of gcc (thanks to RoLex and Ruza for reporting this problem)
+- added a splitter between the main tree and the configuration page that can be used to resize the configuration page
+- if both WindowPos and GuiPlacement3 are found, GuiPlacement3 is used because it stores splitter's position (WindowPos will still be saved to AdvOR.ini)
+- messages that are logged before the GUI is created are cached and shown later in the Debug window
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on May 2nd; there are 153441 IP ranges having 32 ranges in the fake "A1" country; 31 ranges were approximated to real countries
+
 2017-04-27 Advanced Onion Router 0.3.1.1
 
 - added support for Unicode command line arguments; main() will use argv[] arguments converted from Unicode to UTF-8

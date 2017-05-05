@@ -1,21 +1,21 @@
 #include "dlg_resize.h"
 
-typedef BOOL (WINAPI *LP_InitPlugin)(HANDLE,DWORD,char *,void *);
-typedef BOOL (WINAPI *LP_UnloadPlugin)(int exit);			// unload from GUI = 1 / exitting program, prompt user = 2 / exitting, must terminate = 3 / exit/unload canceled by user = 0
-typedef HWND (WINAPI *LP_GetConfigurationWindow)(HWND hParent);
-typedef resize_info_t* (WINAPI *LP_ResizeConfigurationWindow)(RECT newSize);
-typedef int (WINAPI *LP_RegisterConnection)(DWORD,int,char *,LPARAM *);
-typedef int (WINAPI *LP_UnregisterConnection)(DWORD,int,char *,LPARAM *);
-typedef int (WINAPI *LP_ConnectionRead)(DWORD,int,int,char *,char *,int*,int,LPARAM *);
-typedef int (WINAPI *LP_ConnectionWrite)(DWORD,int,int,char *,char *,int*,int,LPARAM *);
-typedef int (WINAPI *LP_TranslateAddress)(DWORD,char *,char *,LPARAM *,BOOL);
-typedef int (WINAPI *LP_ChangeIdentity)(DWORD,char *,long);
-typedef void (WINAPI *LP_Start)(BOOL);
-typedef void (WINAPI *LP_RouterChanged)(uint32_t,char *,int);
-typedef BOOL (WINAPI *LP_HiddenService_NotifyService)(int,char *,int,DWORD,LPARAM *);
-typedef BOOL (WINAPI *LP_HiddenService_HandleRead)(char *,DWORD,char *,int,LPARAM *);
-typedef BOOL (WINAPI *LP_InterceptProcess)(DWORD,BOOL);
-typedef void (WINAPI *LP_LanguageChange)(char *);
+typedef BOOL (WINAPI *LP_InitPlugin)(HANDLE,DWORD,char *,void *) __attribute__((stdcall));
+typedef BOOL (WINAPI *LP_UnloadPlugin)(int exit) __attribute__((stdcall));			// unload from GUI = 1 / exitting program, prompt user = 2 / exitting, must terminate = 3 / exit/unload canceled by user = 0
+typedef HWND (WINAPI *LP_GetConfigurationWindow)(HWND hParent) __attribute__((stdcall));
+typedef resize_info_t* (WINAPI *LP_ResizeConfigurationWindow)(RECT *newSize) __attribute__((stdcall));
+typedef int (WINAPI *LP_RegisterConnection)(DWORD,int,char *,LPARAM *) __attribute__((stdcall));
+typedef int (WINAPI *LP_UnregisterConnection)(DWORD,int,char *,LPARAM *) __attribute__((stdcall));
+typedef int (WINAPI *LP_ConnectionRead)(DWORD,int,int,char *,char *,int*,int,LPARAM *) __attribute__((stdcall));
+typedef int (WINAPI *LP_ConnectionWrite)(DWORD,int,int,char *,char *,int*,int,LPARAM *) __attribute__((stdcall));
+typedef int (WINAPI *LP_TranslateAddress)(DWORD,char *,char *,LPARAM *,BOOL) __attribute__((stdcall));
+typedef int (WINAPI *LP_ChangeIdentity)(DWORD,char *,long) __attribute__((stdcall));
+typedef void (WINAPI *LP_Start)(BOOL) __attribute__((stdcall));
+typedef void (WINAPI *LP_RouterChanged)(uint32_t,char *,int) __attribute__((stdcall));
+typedef BOOL (WINAPI *LP_HiddenService_NotifyService)(int,char *,int,DWORD,LPARAM *) __attribute__((stdcall));
+typedef BOOL (WINAPI *LP_HiddenService_HandleRead)(char *,DWORD,char *,int,LPARAM *) __attribute__((stdcall));
+typedef BOOL (WINAPI *LP_InterceptProcess)(DWORD,BOOL) __attribute__((stdcall));
+typedef void (WINAPI *LP_LanguageChange)(char *) __attribute__((stdcall));
 
 
 typedef struct plugin_info_t plugin_info_t;
@@ -82,22 +82,22 @@ struct plugin_info_t
 	int maxdefs;
 	struct lang_str_info *loaded_lng;
 	char *lngfile;
-	LP_InitPlugin InitPlugin;
-	LP_UnloadPlugin UnloadPlugin;
-	LP_GetConfigurationWindow GetConfigurationWindow;
-	LP_ResizeConfigurationWindow ResizeConfigurationWindow;
-	LP_RegisterConnection RegisterConnection;
-	LP_UnregisterConnection UnregisterConnection;
-	LP_ConnectionRead ConnectionRead;
-	LP_ConnectionWrite ConnectionWrite;
-	LP_TranslateAddress TranslateAddress;
-	LP_ChangeIdentity ChangeIdentity;
-	LP_Start AdvTorStart;
-	LP_RouterChanged RouterChanged;
-	LP_HiddenService_NotifyService HiddenService_NotifyService;
-	LP_HiddenService_HandleRead HiddenService_HandleRead;
-	LP_InterceptProcess InterceptProcess;
-	LP_LanguageChange LanguageChange;
+	LP_InitPlugin InitPlugin __attribute__((stdcall));
+	LP_UnloadPlugin UnloadPlugin __attribute__((stdcall));
+	LP_GetConfigurationWindow GetConfigurationWindow __attribute__((stdcall));
+	LP_ResizeConfigurationWindow ResizeConfigurationWindow __attribute__((stdcall));
+	LP_RegisterConnection RegisterConnection __attribute__((stdcall));
+	LP_UnregisterConnection UnregisterConnection __attribute__((stdcall));
+	LP_ConnectionRead ConnectionRead __attribute__((stdcall));
+	LP_ConnectionWrite ConnectionWrite __attribute__((stdcall));
+	LP_TranslateAddress TranslateAddress __attribute__((stdcall));
+	LP_ChangeIdentity ChangeIdentity __attribute__((stdcall));
+	LP_Start AdvTorStart __attribute__((stdcall));
+	LP_RouterChanged RouterChanged __attribute__((stdcall));
+	LP_HiddenService_NotifyService HiddenService_NotifyService __attribute__((stdcall));
+	LP_HiddenService_HandleRead HiddenService_HandleRead __attribute__((stdcall));
+	LP_InterceptProcess InterceptProcess __attribute__((stdcall));
+	LP_LanguageChange LanguageChange __attribute__((stdcall));
 	DWORD exclKey;
 	struct plugin_info_t* next_plugin;
 };

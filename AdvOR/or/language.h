@@ -39,6 +39,7 @@ void LangInitCriticalSection(void);
 void LangDeleteCriticalSection(void);
 void LangEnterCriticalSection(void);
 void LangLeaveCriticalSection(void);
+void LangShowCache(HWND hDlg);
 void enumLanguages(HWND hCombo,char *selected);
 void verify_lng(char *file);
 int load_lng(char *file);

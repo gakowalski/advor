@@ -149,6 +149,7 @@ char *getLogFilter(void);
 void progressLog(int percent,const char *message);
 void setLog(int severity,char *fname);
 void setLogging(int severity);
+void cache_log(char *str);
 
 /* Outputs a message to stdout */
 void _log(int severity, log_domain_mask_t domain, const char *format, ...);

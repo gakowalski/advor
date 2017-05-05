@@ -1,6 +1,7 @@
 #include "or.h"
 #include "dlg_util.h"
 #include "main.h"
+#include "language.h"
 
 HWND hDlgDebug=NULL;
 WNDPROC oldEditProc;
@@ -362,6 +363,7 @@ int __stdcall dlgDebug(HWND hDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		LONG s = GetWindowLong(GetDlgItem(hDlg,100),GWL_WNDPROC);
 		oldEditProc=(WNDPROC)s;
 		SetWindowLong(GetDlgItem(hDlg,100),GWL_WNDPROC,(LONG)&newEditProc);
+		LangShowCache(hDlg);
 	}
 	else if(uMsg==WM_COMMAND)
 	{

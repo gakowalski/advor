@@ -2,6 +2,7 @@
 #include "log.h"
 #include "language.h"
 #include "lang_def.h"
+#include "container.h"
 
 #define LANUGAGE_ANSI 0
 #define LANGUAGE_UNICODE 1
@@ -410,6 +411,22 @@ void LangReplaceSel(char *replacement,HWND hDlg)
 	else if(!(hastimer&1))
 	{	SetTimer(hDlg,101,250,0);
 		hastimer|=1;
+	}
+}
+
+extern smartlist_t *logcache;
+void LangShowCache(HWND hDlg)
+{
+	if(logcache)
+	{	LangEnterCriticalSection();
+		SMARTLIST_FOREACH(logcache,char *,s1,
+		{	LangReplaceSel(s1,hDlg);
+			tor_free(s1);
+		});
+		smartlist_clear(logcache);
+		smartlist_free(logcache);
+		logcache = NULL;
+		LeaveCriticalSection(&hCriticalSection);
 	}
 }
 

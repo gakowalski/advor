@@ -822,7 +822,7 @@ resize_info_t *get_resize_info(RECT newSize,int list_item)
 	for(plugin_tmp=plugins;plugin_tmp;plugin_tmp=plugin_tmp->next_plugin)
 	{	if(plugin_tmp->listItem==list_item)
 		{	if(plugin_tmp->ResizeConfigurationWindow)
-				return (plugin_tmp->ResizeConfigurationWindow)(newSize);
+				return (plugin_tmp->ResizeConfigurationWindow)(&newSize);
 			return NULL;
 		}
 	}
