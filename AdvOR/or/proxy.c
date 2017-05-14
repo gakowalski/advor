@@ -120,10 +120,14 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 	static int have_warned_about_unsafe_socks = 0;
 
 	if(buf->datalen < 2)	return 0;	/* version and another byte */
-	buf_pullup(buf, 128);
+	buf_pullup(buf, 256);
 	tor_assert(buf->head && buf->head->datalen >= 2);
 
 	socksver = *buf->head->data;
+	if((req->socks_version==0x50 || req->socks_version==5) && socksver==1)
+	{	socksver=5;
+		req->socks_version=0x50;
+	}
 	switch(socksver)	/* which version of socks? */
 	{	case 5: /* socks5 */
 			if(req->socks_version == 0x50)
@@ -131,11 +135,44 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 				if(buf->head->datalen < ulen+3)
 					return 0;
 				if(!tmpOptions->SocksAuthenticator || !(tmpOptions->DirFlags&DIR_FLAG_SOCKS_AUTH))
-				{	//log_info(LD_APP,get_lang_str(LANG_LOG_BUFFERS_RECEIVED_AUTH));
+				{	int dlen = buf->head->datalen;
+					char *dtmp=&buf->head->data[0];
+					char *user,*pass;
+					if(dlen<3)
+						return 0;
+					if(dtmp[0]!=1)
+					{	log(LOG_WARN,LD_APP,get_lang_str(LANG_LOG_UNKNOWN_LOGIN_VERSION));
+						req->replylen = 2; /* 2 bytes of response */
+						req->reply[0] = 5;
+						req->reply[1] = '\xFF'; /* reject all methods */
+						return -1;
+					}
+					dlen--;
+					dtmp++;
+					if(dtmp[0]>=dlen+1)
+						return 0;
+					user=dtmp;
+					dlen -= dtmp[0]+1;
+					dtmp += dtmp[0]+1;
+					pass=dtmp;
+					if(dtmp[0]>=dlen+1)
+						return 0;
+					dlen=user[0];
+					user=tor_memdup(user+1,dlen+1);
+					user[dlen]=0;
+					dlen=pass[0];
+					pass=tor_memdup(pass+1,dlen+1);
+					pass[dlen]=0;
+					log(LOG_WARN,LD_APP,get_lang_str(LANG_LOG_UNRECOGNIZED_LOGIN),user,pass);
+					tor_free(user);tor_free(pass);
+					//log_info(LD_APP,get_lang_str(LANG_LOG_BUFFERS_RECEIVED_AUTH));
 					req->replylen = 2; /* 2 bytes of response */
-					req->reply[0] = 5;
+					req->reply[0] = 1;
 					req->reply[1] = 0; /* reject all methods */
-					buf_clear(buf);
+					dtmp += dtmp[0]+1;
+					dlen = dtmp-&buf->head->data[0];
+					buf_remove_from_front(buf,dlen);
+					req->socks_version=5;
 					return 0;
 				}
 				len = strlen(tmpOptions->SocksAuthenticator);
@@ -156,6 +193,7 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 					req->reply[0] = 5;
 					req->reply[1] = 0; /* reject all methods */
 					buf_clear(buf);
+					req->socks_version=5;
 					return 0;
 				}
 				if(i!=ulen)
@@ -182,6 +220,7 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 				req->reply[0] = 5;
 				req->reply[1] = 0; /* reject all methods */
 				buf_clear(buf);
+				req->socks_version=5;
 				return 0;
 			}
 			else if(req->socks_version != 5)	/* we need to negotiate a method */
@@ -193,7 +232,7 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 				if(nummethods)
 				{	if(tmpOptions->SocksAuthenticator && (tmpOptions->DirFlags&DIR_FLAG_SOCKS_AUTH) && (!memchr(buf->head->data+2,2,nummethods)))
 						nummethods = 0;
-					if((!memchr(buf->head->data+2, 0, nummethods) && !memchr(buf->head->data+2, 0xE0, nummethods)))
+					if((!memchr(buf->head->data+2, 0, nummethods) && !memchr(buf->head->data+2, 2, nummethods) && !memchr(buf->head->data+2, 0xE0, nummethods)))
 						nummethods = 0;
 				}
 				if(!nummethods)
@@ -214,6 +253,10 @@ int fetch_from_buf_socks(buf_t *buf, socks_request_t *req, int log_sockstype, in
 				{	if(memchr(buf->head->data+2, 0xE0, nummethods)!=NULL)
 					{	req->reply[1] = 0xE0;
 						log_debug(LD_APP,get_lang_str(LANG_LOG_BUFFERS_SOCKS_METHOD_E0));
+					}
+					else if(memchr(buf->head->data+2, 2, nummethods)!=NULL)
+					{	req->reply[1] = 2;
+						req->socks_version = 0x50;
 					}
 					else
 					{	req->reply[1] = 0; /* tell client to use "none" auth method */

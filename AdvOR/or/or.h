@@ -12,8 +12,8 @@
 #ifndef _TOR_OR_H
 #define _TOR_OR_H
 #define int3 asm(".intel_syntax noprefix\nint 3\n.att_syntax prefix");
-#define advtor_ver "0.3.1.2"
-#define ADVTOR_DW_VER 0x00030102
+#define advtor_ver "0.3.1.3"
+#define ADVTOR_DW_VER 0x00030103
 #define FAKE_TOR_VER "0.2.2.39"
 #define MAX_PLUGIN_CONNECTION_PARAMS 100
 

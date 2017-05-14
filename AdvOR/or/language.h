@@ -3419,6 +3419,9 @@ struct lang_str_info *plugin_load_lng(char *dllname,int *maxdefs,char *language,
 #define LANG_LOG_RENDSERVICE_ENABLING 3260
 #define LANG_LOG_RENDSERVICE_DISABLING 3261
 
-#define LANG_MAX 3262
+#define LANG_LOG_UNKNOWN_LOGIN_VERSION 3262
+#define LANG_LOG_UNRECOGNIZED_LOGIN 3263
+
+#define LANG_MAX 3264
 
 #endif

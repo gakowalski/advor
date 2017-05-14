@@ -3384,6 +3384,8 @@ lang_str_info lang_tbl[]={
 
 {LANG_LOG_RENDSERVICE_ENABLING,"Enabling hidden service key %i (%s.onion)"},
 {LANG_LOG_RENDSERVICE_DISABLING,"Disabling hidden service key %i (%s.onion)"},
+{LANG_LOG_UNKNOWN_LOGIN_VERSION,"Unknown login version"},
+{LANG_LOG_UNRECOGNIZED_LOGIN,"Received an unrecognized login with user: \"%s\" and password \"%s\". This request is allowed, but please configure your browser properly."},
 
 {LANG_MAX,NULL}
 };

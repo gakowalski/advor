@@ -1,3 +1,9 @@
+2017-05-14 Advanced Onion Router 0.3.1.3
+
+- when a client uses an unrecognized Socks5 login, the request will be allowed; however, a warning will be shown that contains the username and the password to allow users to find bad configuration settings (this solves the problem with replacing Tor with AdvOR in the Tor Browser Bundle)
+- the files Help\Firefox\readme.txt and Help\Firefox\AdvOR.ini were updated to work with the 6.5.2 version of Tor Browser
+- updated language strings: 3262, 3263
+
 2017-05-05 Advanced Onion Router 0.3.1.2
 
 - corrected some plugin calls that were using different calling conventions than expected when compiled with newest versions of gcc (thanks to RoLex and Ruza for reporting this problem)
