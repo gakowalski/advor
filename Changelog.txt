@@ -1,3 +1,9 @@
+2017-11-05 Advanced Onion Router 0.3.1.5
+
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on October 4'th; there are 163953 IP ranges having 32 ranges in the fake "A1" country; all 32 ranges were approximated to real countries
+- the OpenSSL library was updated to 1.1.0g
+- updated directory authorities according to https://atlas.torproject.org/#search/flag:Authority
+
 2017-06-10 Advanced Onion Router 0.3.1.4
 
 - geoip_c.h was updated with GeoIPCountryWhois.csv released on June 7'th; there are 153678 IP ranges having 32 ranges in the fake "A1" country; 31 ranges were approximated to real countries

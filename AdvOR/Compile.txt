@@ -51,19 +51,19 @@ Stage Three:  Download, extract, compile openssl
 ----------------------------------------------
 
 Download openssl:
-https://www.openssl.org/source/openssl-1.1.0f.tar.gz
+https://www.openssl.org/source/openssl-1.1.0g.tar.gz
 
 Extract openssl:
 Copy the openssl tarball into the "AdvOR" directory.
 Type "cd AdvOR/"
-Type "tar zxf openssl-1.1.0f.tar.gz"
+Type "tar zxf openssl-1.1.0g.tar.gz"
 
 If you're using an older version of Perl for MinGW:
   Download Perl-MinGW from https://sourceforge.net/projects/perl-mingw/
   Extract bin, lib and share from perl-5.24.0-mingw32.zip/perl-5.24.0/ to the msys/1.0/ directory
 
 Make openssl libraries:
-Type "cd openssl-1.1.0f/"
+Type "cd openssl-1.1.0g/"
 Type "./Configure -no-shared -no-idea -no-rc5 -no-mdc2 mingw"
 Edit Makefile and replace "\" with "/" in the line containing "PERL="
 Edit crypto/init.c and replace
